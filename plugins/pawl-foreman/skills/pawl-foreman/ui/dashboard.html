@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PAWL DASHBOARD</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;700;800&display=swap">
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+
+<header>
+    <div>
+        <h1 style="font-size: 32px;">PAWL</h1>
+        <div class="project-path" id="project-path">loading...</div>
+    </div>
+    <div class="header-right">
+        <div class="summary-tags" id="summary-tags"></div>
+        <div class="refresh-label">AUTO-REFRESH 2S</div>
+    </div>
+</header>
+
+<div class="workflow-bar" id="workflow-bar"></div>
+
+<div class="container">
+    <main class="task-list" id="tasks">
+        <div class="empty-state">loading...</div>
+    </main>
+    <aside>
+        <div class="sidebar-box" id="events">
+            <h2>EVENT LOG</h2>
+            <div class="empty-state">loading...</div>
+        </div>
+    </aside>
+</div>
+
+<script src="dashboard.js"></script>
+
+</body>
+</html>

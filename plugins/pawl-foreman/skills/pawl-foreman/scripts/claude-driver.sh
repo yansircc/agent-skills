@@ -3,7 +3,7 @@
 # Usually, there is no need to modify this script. To switch between Pipe and TUI, just change the run and in_viewport in config.json.
 set -euo pipefail
 
-FLAGS=(--dangerously-skip-permissions)
+FLAGS=(--allowedTools "${CLAUDE_ALLOWED_TOOLS:-Bash,Read,Write,Edit,Glob,Grep}")
 [ -t 0 ] || FLAGS+=(-p)
 
 # Per-step customization via env vars (set in config.json run command)

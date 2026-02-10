@@ -1,5 +1,21 @@
 # Claude Code — Agent Reference
 
+## Permissions
+
+The driver defaults to `--allowedTools "Bash,Read,Write,Edit,Glob,Grep"` — enough for most coding tasks. Customize via `CLAUDE_ALLOWED_TOOLS` env var in your config.json run command:
+
+```json
+{ "run": "CLAUDE_ALLOWED_TOOLS='Bash,Read,Write,Edit,Glob,Grep,WebFetch' cat ${prompt} | ${driver}" }
+```
+
+For maximum convenience (skip all permission prompts), use `--dangerously-skip-permissions` instead:
+
+```bash
+FLAGS=(--dangerously-skip-permissions)
+```
+
+This is useful for local development in sandboxed environments but not recommended for production.
+
 ## TUI Graceful Shutdown
 
 Claude TUI swallows Ctrl+C when the input box is focused. You must exit input mode first:

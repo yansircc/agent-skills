@@ -79,6 +79,11 @@ pawl 不管 prompt。创建 prompt 文件（路径对应 vars 中的 `${prompt}`
 | 测试可靠但失败需分析 | `"cargo test"` | `"manual"` | 自动检测，人工决策 |
 | 简单步骤无测试 | 省略 | 省略 | 失败即终止，手动 reset |
 
+两条约束：
+
+1. **verify = completeness + correctness**。correctness（测试通过）不够——空项目测试也通过。worktree 场景加 completeness 检查（有文件变更），注意 `git diff` 不含 untracked files，需要 `git ls-files --others`。
+2. **verify 失败时必须有输出**。静默失败使 retry 变成盲目重复。对每个 verify 子句问：它失败时打印什么？无输出则补 `|| { echo "..." >&2; false; }`。
+
 ### Work Step 组合
 
 两个正交维度：
@@ -115,7 +120,8 @@ Plan 不通过：`pawl reset --step` 回退 plan 步骤。
   "workflow": [
     { "name": "setup",   "run": "git branch ${branch} ${base_branch} 2>/dev/null; git worktree add ${worktree} ${branch}" },
     { "name": "develop", "run": "PROMPT_FILE=... ${driver}",
-      "in_viewport": true, "verify": "cd ${worktree} && cargo test", "on_fail": "retry" },
+      "in_viewport": true, "verify": "cd ${worktree} && <completeness> && <test>",
+      "on_fail": "retry" },
     { "name": "merge",   "run": "cd ${project_root} && git merge --squash ${branch} && git commit -m 'feat(${task}): merge'" },
     { "name": "cleanup", "run": "git -C ${project_root} worktree remove ${worktree} --force 2>/dev/null; git -C ${project_root} branch -D ${branch} 2>/dev/null; true" }
   ]

@@ -1,6 +1,6 @@
 ---
 name: less-is-more
-description: '"Addition by Subtraction" design philosophy for writing code and building systems. Activate this skill when designing architectures, writing new code, building agents, or making implementation decisions. Use it to resist over-engineering, enforce simplicity, and trust the model/runtime/user''s capabilities. Triggers: designing systems, code review for complexity, architecture decisions, agent/tool design, refactoring discussions.'
+description: Addition by Subtraction — resist over-engineering, enforce simplicity, trust the substrate. Triggers: architecture decisions, code review for complexity, agent/tool design.
 ---
 
 # Less Is More: Addition by Subtraction

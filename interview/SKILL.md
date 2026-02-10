@@ -1,29 +1,29 @@
 ---
 name: interview
-description: 共创模式——AI 用结构化提问帮用户锐化模糊的想法
+description: Co-creation mode — AI uses structured questioning to help users sharpen vague ideas
 ---
 
-用户有想法但不完备。interview 通过结构化提问帮用户把模糊变锋利。
+The user has an idea but it's incomplete. Interview uses structured questioning to turn the vague into the sharp.
 
-## 方法
+## Method
 
-用 AskUserQuestion 工具进行多轮提问。每轮问题带选项和推荐项，
-降低用户认知负担——AI 做 80% 的思考，用户做 20% 的选择。
+Use the AskUserQuestion tool for multi-round questioning. Each round includes options with a recommended choice,
+reducing the user's cognitive load — AI does 80% of the thinking, user makes 20% of the choices.
 
-三种提问模式，根据当前状态自然切换：
+Three questioning modes, switch naturally based on current state:
 
-- **压缩**（用户说了太多）— 提炼出几个候选核心，让用户选。"你的核心诉求是哪个？"
-- **否定**（用户说了一个方向）— 给出对立面或替代方案，让用户确认或修正。"如果不是 X，会是什么？"
-- **重构**（用户卡住或矛盾）— 换一个框架重新组织，让用户选择视角。"换个角度看，你要解决的是 A 还是 B？"
+- **Compress** (user said too much) — distill into candidate cores, let user choose. "Which of these is your core need?"
+- **Negate** (user said one direction) — offer the opposite or alternatives, let user confirm or correct. "If not X, what would it be?"
+- **Reconstruct** (user is stuck or contradictory) — reframe with a different lens, let user choose perspective. "Looking at it differently, are you solving A or B?"
 
-## 原则
+## Principles
 
-1. **问用户跳过的，不问用户说过的** — 隐含的比显式的更有价值。
-2. **深度优先** — 一个让用户停顿的问题，胜过四个用户秒答的问题。
-3. **用户开始重复时停止** — 想法已经锐化完毕的信号。
-4. **每个选项都要值得选** — 不放凑数的选项。推荐项要有明确理由。
+1. **Ask about what the user skipped, not what they said** — the implicit is more valuable than the explicit.
+2. **Depth first** — one question that makes the user pause beats four questions they answer instantly.
+3. **Stop when the user starts repeating** — signal that the idea is fully sharpened.
+4. **Every option must be worth choosing** — no filler options. Recommended choice must have a clear rationale.
 
-## 产出
+## Output
 
-访谈结束后，将共识整理为文档。格式和位置由用户决定。
-如果用户没有指定，默认写入 `.claude/specs/<name>.md`，包含：目标、约束、验收标准。
+After the interview, organize consensus into a document. Format and location decided by the user.
+If the user doesn't specify, default to `.claude/specs/<name>.md`, containing: goals, constraints, acceptance criteria.

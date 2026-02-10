@@ -1,26 +1,26 @@
 ---
 name: rethink
-description: 带着已知信息重新设计方案，打破锚定效应
+description: Informed reset mode — redesign with known information to break anchoring bias
 ---
 
-Informed Reset 模式。放弃当前方案，用对话中已获得的全部知识重新设计。
+Informed Reset mode. Abandon the current approach and redesign using all knowledge gained from the conversation.
 
-## 执行步骤
+## Execution Steps
 
-1. **列出已知** — 从对话中列出：
-   - 用户真正想要什么（通过追问和反馈暴露的）
-   - 关键约束和边界条件
-   - 已经尝试过但有问题的路径
+1. **List what's known** — from the conversation, list:
+   - What the user truly wants (revealed through questions and feedback)
+   - Key constraints and boundary conditions
+   - Paths already tried that had problems
 
-2. **放弃当前方案** — 不是修补，不是优化，是重来。明确声明"放弃之前的方案"。
+2. **Abandon the current approach** — not patching, not optimizing, starting over. Explicitly state "abandoning the previous approach."
 
-3. **重新设计** — 用"第二次做题"的优势，给出一个：
-   - 不同于之前的方案
-   - 更简洁或更优雅的方案
-   - 解释为什么这个方案更好
+3. **Redesign** — with the advantage of a "second attempt," produce:
+   - A different approach from before
+   - A simpler or more elegant solution
+   - An explanation of why this approach is better
 
-## 约束
+## Constraints
 
-- 不要保留之前方案的"沉没成本"
-- 如果重新思考后认为之前方案其实是对的，直接说明原因，不要强行给不同的方案
-- 新方案必须明确说明与旧方案的本质区别
+- Don't preserve sunk costs from the previous approach
+- If rethinking concludes the previous approach was actually correct, say so directly — don't force a different solution
+- The new approach must clearly state its essential difference from the old one

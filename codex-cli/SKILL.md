@@ -1,91 +1,91 @@
 ---
 name: codex-cli
-description: OpenAI Codex CLI 命令参考，帮助构建可执行的 codex 命令
+description: OpenAI Codex CLI command reference for building executable codex commands
 ---
 
 # Codex CLI
 
-安装: `npm i -g @openai/codex` 或 `brew install --cask codex`
+Install: `npm i -g @openai/codex` or `brew install --cask codex`
 
-## 基本用法
+## Basic Usage
 
 ```bash
-codex                            # 交互式 UI
-codex "query"                    # 带提示启动
-codex exec "query"               # 非交互式（自动化必须）
-codex resume --last              # 恢复上一会话
-codex resume <id>                # 恢复指定会话
-codex fork <id> "query"          # 从会话分支
+codex                            # Interactive UI
+codex "query"                    # Start with prompt
+codex exec "query"               # Non-interactive (required for automation)
+codex resume --last              # Resume last session
+codex resume <id>                # Resume specific session
+codex fork <id> "query"          # Fork from session
 ```
 
-## 子命令
+## Subcommands
 
-| 命令 | 说明 |
-|------|------|
-| `exec` | 非交互执行，支持 `--json` |
-| `resume` | 恢复会话（`--last`/`--all`/`<id>`） |
-| `fork` | 分支会话 |
-| `apply` | 应用云任务 diff |
-| `login/logout` | 认证管理 |
-| `cloud` | 云任务（experimental） |
-| `mcp` | MCP 服务器模式（experimental） |
+| Command | Description |
+|---------|-------------|
+| `exec` | Non-interactive execution, supports `--json` |
+| `resume` | Resume session (`--last`/`--all`/`<id>`) |
+| `fork` | Fork session |
+| `apply` | Apply cloud task diff |
+| `login/logout` | Authentication management |
+| `cloud` | Cloud tasks (experimental) |
+| `mcp` | MCP server mode (experimental) |
 
-## 核心 Flags
+## Core Flags
 
-| Flag | 说明 |
-|------|------|
-| `--model` | 模型：`gpt-5-codex`(默认)/`o3` 等 |
-| `--cd` | 工作目录 |
-| `--add-dir` | 额外目录写权限 |
+| Flag | Description |
+|------|-------------|
+| `--model` | Model: `gpt-5-codex`(default)/`o3` etc. |
+| `--cd` | Working directory |
+| `--add-dir` | Extra directory with write access |
 | `--sandbox` | `read-only`/`workspace-write`/`danger-full-access` |
 | `--ask-for-approval` | `untrusted`/`on-failure`/`on-request`/`never` |
-| `--yolo` | 跳过审批和沙箱（`--dangerously-bypass-approvals-and-sandbox`） |
-| `--full-auto` | 低摩擦本地模式 |
-| `-c key=value` | 覆盖配置 |
-| `--profile` | 配置 profile |
-| `-i, --image` | 附加图片 |
-| `--search` | 启用 web 搜索 |
-| `--oss` | 本地模型（需 Ollama） |
+| `--yolo` | Skip approvals and sandbox (`--dangerously-bypass-approvals-and-sandbox`) |
+| `--full-auto` | Low-friction local mode |
+| `-c key=value` | Override config |
+| `--profile` | Config profile |
+| `-i, --image` | Attach image |
+| `--search` | Enable web search |
+| `--oss` | Local models (requires Ollama) |
 
-## exec 专用
+## exec-Specific Flags
 
-| Flag | 说明 |
-|------|------|
-| `--json` | JSON 事件输出 |
-| `--output-last-message <file>` | 保存最终响应 |
-| `--skip-git-repo-check` | 允许非 Git 仓库 |
+| Flag | Description |
+|------|-------------|
+| `--json` | JSON event output |
+| `--output-last-message <file>` | Save final response |
+| `--skip-git-repo-check` | Allow non-Git repos |
 
-## 审批模式
+## Approval Modes
 
-- **auto**（默认）：工作目录内自由操作，目录外需确认
-- **read-only**：只读，修改需确认
-- **full-access**：无限制
+- **auto** (default): Free operation within working directory, confirmation required outside
+- **read-only**: Read-only, modifications require confirmation
+- **full-access**: No restrictions
 
-交互式切换：`/approvals`
+Interactive toggle: `/approvals`
 
-## 常用模式
+## Common Patterns
 
 ```bash
-# 自动化执行
+# Automated execution
 codex exec "task" --json
 
-# 工作目录和权限
+# Working directory and permissions
 codex --cd /project --add-dir ../lib "query"
 codex --sandbox workspace-write "query"
 
-# 审批控制
+# Approval control
 codex --ask-for-approval never "query"
 codex --yolo "query"
 codex --full-auto "query"
 
-# 配置覆盖
+# Config override
 codex -c model=o3 -c sandbox=workspace-write "query"
 
-# 图片输入
+# Image input
 codex -i screenshot.png "describe this"
 ```
 
-## 完整示例
+## Full Example
 
 ```bash
 codex exec \
@@ -96,14 +96,14 @@ codex exec \
   "implement HTTP server"
 ```
 
-## 交互式命令
+## Interactive Commands
 
-`/model` `/approvals` `/review` `/fork` `Ctrl+G`(编辑器)
+`/model` `/approvals` `/review` `/fork` `Ctrl+G`(editor)
 
-## 要点
+## Key Points
 
-1. `exec` 是非交互执行的关键
-2. 配置优先级：CLI flags > 环境变量 > `~/.codex/config.toml`
-3. 生产环境推荐 `workspace-write` 或 `read-only` 沙箱
+1. `exec` is essential for non-interactive execution
+2. Config priority: CLI flags > environment variables > `~/.codex/config.toml`
+3. Production use: recommend `workspace-write` or `read-only` sandbox
 
-文档: https://developers.openai.com/codex/cli/
+Docs: https://developers.openai.com/codex/cli/

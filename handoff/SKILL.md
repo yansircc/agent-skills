@@ -1,20 +1,20 @@
 ---
 name: handoff
-description: 执行 Session Handoff，为下一个 session 做好交接准备
+description: Execute a session handoff — prepare knowledge transfer for the next session
 ---
 
-将本次 session 中代码不编码的知识写入 `.claude/HANDOFF.md`。
+Write knowledge from this session that code doesn't encode into `.claude/HANDOFF.md`.
 
-代码和 git history 自动持久化，CLAUDE.md 记录结构性知识，MEMORY.md 记录经验教训。handoff 只保存它们都不覆盖的增量：
+Code and git history persist automatically. CLAUDE.md captures structural knowledge. MEMORY.md captures lessons learned. Handoff saves only the increment that none of them cover:
 
-1. **意图轨迹** — 做了什么决定、为什么、拒绝了什么替代方案
-2. **未完成态** — 什么 pending、卡在哪、下一步是什么
+1. **Intent trajectory** — what decisions were made, why, what alternatives were rejected
+2. **Incomplete state** — what's pending, where things are stuck, what's the next step
 
-## 执行
+## Execution
 
-1. 回顾本次 session 的对话，提取意图轨迹和未完成态
-2. 读取当前 `.claude/HANDOFF.md`
-3. 更新 HANDOFF.md：当前 session 写在最前面，之前的 session 压缩合并
-4. 如果本次 session 有值得跨 session 复用的教训，更新 MEMORY.md
+1. Review the conversation from this session, extract intent trajectory and incomplete state
+2. Read the current `.claude/HANDOFF.md`
+3. Update HANDOFF.md: current session goes at the top, previous sessions get compressed and merged
+4. If this session produced lessons worth reusing across sessions, update MEMORY.md
 
-不要：更新 CLAUDE.md、整理 specs、创建 commit — 如果需要，用户会单独要求。
+Don't: update CLAUDE.md, organize specs, create commits — the user will ask for these separately if needed.

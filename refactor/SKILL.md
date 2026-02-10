@@ -1,103 +1,102 @@
 ---
 name: refactor
-description: 按照软件工程最佳实践分析和优化代码
+description: Analyze and optimize code following software engineering best practices
 ---
 
-重构的元层面指导——不是告诉你具体怎么改，而是帮你思考清楚要不要改、改什么、怎么验证。
+Meta-level refactoring guidance — not telling you what specifically to change, but helping you think clearly about whether to change, what to change, and how to verify.
 
-## 1. 先问：是否值得重构？
+## 1. First Ask: Is It Worth Refactoring?
 
-在分析代码之前，先建立判断框架：
+Before analyzing code, establish a judgment framework:
 
-**重构的收益**（至少满足一项才值得）：
-- 降低理解成本：新人读这段代码需要多久？
-- 降低修改成本：下次改这里需要动几个地方？
-- 降低出错概率：当前结构是否容易引入 bug？
+**Benefits of refactoring** (at least one must apply to be worthwhile):
+- Reduce comprehension cost: how long does it take a newcomer to read this code?
+- Reduce modification cost: how many places need to change next time?
+- Reduce error probability: does the current structure easily introduce bugs?
 
-**重构的成本**（必须诚实评估）：
-- 时间成本：这个重构需要多久？
-- 风险成本：可能引入什么问题？测试覆盖够吗？
-- 认知成本：团队需要重新理解新结构吗？
+**Costs of refactoring** (must be honestly assessed):
+- Time cost: how long will this refactoring take?
+- Risk cost: what problems might it introduce? Is test coverage sufficient?
+- Cognitive cost: will the team need to re-learn the new structure?
 
-**不值得重构的信号**：
-- "看起来不够优雅" — 但没有具体的痛点
-- "违反了某个原则" — 但实际使用中没有问题
-- "以后可能需要扩展" — 但扩展需求是假设的
+**Signals it's not worth refactoring**:
+- "Doesn't look elegant enough" — but no concrete pain point
+- "Violates some principle" — but causes no issues in practice
+- "Might need extension later" — but the extension need is hypothetical
 
-## 2. 识别问题：症状 vs 原因
+## 2. Identify Problems: Symptoms vs Causes
 
-用户说"这个模块需要重构"时，先区分：
+When a user says "this module needs refactoring," first distinguish:
 
-| 症状（表象） | 可能的原因 | 不同原因的解法不同 |
-|-------------|-----------|------------------|
-| 文件太大 | 职责混杂 → 拆分 | 重复代码多 → 提取函数 |
-| 改一处要动多处 | 缺少抽象 → 提取 | 耦合过紧 → 解耦 |
-| 代码难理解 | 命名差 → 重命名 | 逻辑复杂 → 简化/注释 |
-| 经常出 bug | 状态管理混乱 → 重构状态 | 边界处理差 → 加校验 |
+| Symptom (Surface) | Possible Cause | Different causes → different solutions |
+|-------------------|---------------|---------------------------------------|
+| File too large | Mixed responsibilities → split | Too much duplicate code → extract functions |
+| Changing one place requires changing many | Missing abstraction → extract | Tight coupling → decouple |
+| Code hard to understand | Poor naming → rename | Complex logic → simplify/comment |
+| Frequent bugs | Messy state management → restructure state | Poor boundary handling → add validation |
 
-**追问清单**：
-- 这个问题在实际开发中造成了什么具体困扰？
-- 最近一次因为这个问题踩坑是什么时候？
-- 如果不改，最坏情况是什么？
+**Follow-up checklist**:
+- What specific trouble has this problem caused in actual development?
+- When was the last time you got burned by this problem?
+- If left unchanged, what's the worst case?
 
-## 3. 权衡取舍：没有完美方案
+## 3. Weigh Trade-offs: No Perfect Solution
 
-任何重构都有 trade-off，必须明确说明：
+Every refactoring has trade-offs that must be stated clearly:
 
-**常见的 trade-off**：
-- 内聚 vs 文件数量：放一起便于理解，拆开便于复用
-- 抽象 vs 直接：抽象减少重复，但增加间接层
-- 灵活 vs 简单：可配置性高，但复杂度也高
-- 性能 vs 可读：优化后更快，但更难理解
+**Common trade-offs**:
+- Cohesion vs file count: keeping together aids understanding, splitting aids reuse
+- Abstraction vs directness: abstraction reduces duplication but adds indirection
+- Flexibility vs simplicity: high configurability means high complexity
+- Performance vs readability: optimized code is faster but harder to understand
 
-**做决策的原则**：
-- 优先解决当前实际痛点，而非假设的未来问题
-- 选择团队能理解和维护的方案，而非"最优雅"的方案
-- 小步改进优于大规模重写
+**Decision principles**:
+- Prioritize solving current actual pain points, not hypothetical future ones
+- Choose solutions the team can understand and maintain, not the "most elegant" ones
+- Small incremental improvements beat large-scale rewrites
 
-## 4. 分析代码时的思考方式
+## 4. How to Think When Analyzing Code
 
-不要机械套用原则，而是追问：
+Don't mechanically apply principles — follow up with questions:
 
-**看到"重复代码"时**：
-- 这些代码是偶然相似还是本质相同？
-- 如果抽取，未来它们会一起变化吗？
-- 抽取后的命名能清晰表达意图吗？
+**When seeing "duplicate code"**:
+- Is the similarity coincidental or essential?
+- If extracted, will they change together in the future?
+- Can the extracted piece be named clearly to express intent?
 
-**看到"大文件/大函数"时**：
-- 从领域角度，这是一个概念还是多个？
-- 阅读者需要理解全部还是可以分块理解？
-- 拆分后理解一个功能需要跳转几个地方？
+**When seeing "large file/function"**:
+- From a domain perspective, is this one concept or many?
+- Does the reader need to understand all of it, or can they understand it in chunks?
+- After splitting, how many jumps are needed to understand one feature?
 
-**看到"违反某原则"时**：
-- 这个"违反"在实际使用中造成了问题吗？
-- 遵守这个原则的成本是什么？
-- 有没有可能这是合理的例外？
+**When seeing "principle violation"**:
+- Has this "violation" caused problems in actual use?
+- What's the cost of following this principle?
+- Is this possibly a legitimate exception?
 
-## 5. 执行重构：安全第一
+## 5. Execute Refactoring: Safety First
 
-**开始前**：
-- 确保有足够的测试覆盖（或先补测试）
-- 明确回滚方案
+**Before starting**:
+- Ensure sufficient test coverage (or add tests first)
+- Define rollback plan
 
-**执行时**：
-- 小步提交，每步可验证
-- 改完立即运行测试
-- 保持功能不变，只改结构
+**During execution**:
+- Small commits, each verifiable
+- Run tests immediately after changes
+- Keep behavior unchanged, only change structure
 
-**完成后验证**：
-- 测试通过不等于重构成功
-- 问：代码是否更容易理解了？
-- 问：下次修改是否会更简单？
-- 如果答案是否定的，考虑回滚
+**Post-completion verification**:
+- Tests passing doesn't mean refactoring succeeded
+- Ask: is the code easier to understand now?
+- Ask: will the next modification be simpler?
+- If the answer is no, consider rolling back
 
-## 6. 边界约束
+## 6. Boundary Constraints
 
-- 不自动执行大规模重构，需用户确认
-- 发现重构收益不明确时，建议"暂不重构"
-- 保留用户"标记为合理设计"的选项——不是所有看起来不完美的代码都需要改
+- Don't auto-execute large-scale refactoring without user confirmation
+- When refactoring benefit is unclear, recommend "don't refactor yet"
+- Preserve the user's option to "mark as intentional design" — not all imperfect-looking code needs changing
 
-## 7. 重要
+## 7. Important
 
-1. 必须启用 plan mode 来完成探索和思考
-   
+1. Must enable plan mode to complete exploration and thinking

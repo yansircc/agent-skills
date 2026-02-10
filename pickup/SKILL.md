@@ -1,16 +1,16 @@
 ---
 name: pickup
-description: 快速接手项目，了解当前开发状态
+description: Quickly pick up a project and understand the current development state
 ---
 
-从持久化状态重建工作上下文：确定"现在在哪"。
+Rebuild work context from persistent state: determine "where we are now."
 
-项目是什么（CLAUDE.md）已在 system prompt 自动加载。接下来做什么由用户决定。pickup 只负责中间那一环：当前位置。
+What the project is (CLAUDE.md) is already auto-loaded in the system prompt. What to do next is for the user to decide. Pickup only handles the middle piece: current position.
 
-## 执行
+## Execution
 
-1. 读取 `.claude/HANDOFF.md` — 上次 session 的意图轨迹和未完成态
-2. 运行 `git status` + `git log --oneline -5` — 当前物理状态
-3. 输出摘要：上次做到哪了、什么还 pending、工作区是否干净
+1. Read `.claude/HANDOFF.md` — intent trajectory and incomplete state from the last session
+2. Run `git status` + `git log --oneline -5` — current physical state
+3. Output summary: where things left off, what's still pending, whether the working tree is clean
 
-不要：替用户决定本次目标、主动读 CLAUDE.md（已自动加载）、检查 specs 目录。
+Don't: decide the session goal for the user, proactively read CLAUDE.md (already auto-loaded), check specs directory.

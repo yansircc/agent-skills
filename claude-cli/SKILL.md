@@ -1,68 +1,68 @@
 ---
 name: claude-cli
-description: Claude CLI 命令参考，帮助构建可执行的 claude 命令
+description: Claude CLI command reference for building executable claude commands
 ---
 
 # Claude CLI
 
-## 基本用法
+## Basic Usage
 
 ```bash
-claude                           # 交互式 REPL
-claude "query"                   # 带提示启动 REPL
-claude -p "query"                # 非交互式，执行后退出
-cat file | claude -p "query"     # 管道输入
-claude -c                        # 继续最近对话
-claude -r "session" "query"      # 恢复指定 session
+claude                           # Interactive REPL
+claude "query"                   # Start REPL with prompt
+claude -p "query"                # Non-interactive, exit after execution
+cat file | claude -p "query"     # Pipe input
+claude -c                        # Continue most recent conversation
+claude -r "session" "query"      # Resume specific session
 ```
 
-## 核心 Flags
+## Core Flags
 
-| Flag | 说明 |
-|------|------|
-| `-p, --print` | **非交互模式**（自动化必须） |
-| `--output-format` | `text`(默认)/`json`/`stream-json` |
-| `--input-format` | 输入格式：`text`/`stream-json`（仅 -p） |
-| `--model` | 模型：`sonnet`/`opus`/`haiku` 或完整名 |
-| `--fallback-model` | 过载时回退模型（仅 -p） |
-| `--system-prompt` | 替换系统提示 |
-| `--append-system-prompt` | 追加到系统提示（推荐） |
-| `--system-prompt-file` | 从文件加载系统提示（仅 -p） |
-| `--append-system-prompt-file` | 从文件追加系统提示（仅 -p） |
-| `--tools` | 限制工具：`"Bash,Edit,Read"` 或 `""` 禁用全部 |
-| `--allowedTools` | 允许无确认：`"Bash(git *)" "Read"` |
-| `--disallowedTools` | 禁用特定工具 |
-| `--mcp-config` | MCP 配置：文件路径或 JSON |
-| `--strict-mcp-config` | 只用指定的 MCP 配置 |
-| `--setting-sources` | 设置源：`user,project,local` 或 `""` 禁用 |
-| `--settings` | 额外设置文件 |
-| `--permission-mode` | 权限模式：`plan` 等 |
-| `--dangerously-skip-permissions` | 跳过所有权限 |
-| `--permission-prompt-tool` | MCP 工具处理权限提示（仅 -p） |
-| `--max-budget-usd` | API 花费上限（仅 -p） |
-| `--max-turns` | 轮次上限（仅 -p） |
-| `--json-schema` | 验证输出 JSON 结构（仅 -p） |
-| `--agent` | 指定当前 session 使用的 agent |
-| `--agents` | 自定义子代理 JSON |
-| `--add-dir` | 添加额外工作目录 |
-| `--chrome` / `--no-chrome` | 启用/禁用 Chrome 浏览器集成 |
-| `--init` / `--init-only` | 运行初始化 hooks（后者运行后退出） |
-| `--session-id` | 指定 session ID（必须是 UUID） |
-| `--fork-session` | 恢复时创建新 session（配合 -r/-c） |
-| `--from-pr` | 恢复关联到指定 PR 的 session |
-| `--remote` | 在 claude.ai 创建 web session |
-| `--teleport` | 将 web session 恢复到本地终端 |
-| `--no-session-persistence` | 禁用会话持久化（仅 -p） |
-| `--disable-slash-commands` | 禁用 slash commands |
-| `--include-partial-messages` | 包含部分流事件（需 stream-json） |
-| `--betas` | API beta headers（仅 API key 用户） |
-| `--plugin-dir` | 加载插件目录（可重复） |
-| `--debug` | 调试：`"api,mcp"` 或 `"!statsig,!file"` |
-| `--verbose` | 详细输出 |
+| Flag | Description |
+|------|-------------|
+| `-p, --print` | **Non-interactive mode** (required for automation) |
+| `--output-format` | `text`(default)/`json`/`stream-json` |
+| `--input-format` | Input format: `text`/`stream-json` (-p only) |
+| `--model` | Model: `sonnet`/`opus`/`haiku` or full name |
+| `--fallback-model` | Fallback model on overload (-p only) |
+| `--system-prompt` | Replace system prompt |
+| `--append-system-prompt` | Append to system prompt (recommended) |
+| `--system-prompt-file` | Load system prompt from file (-p only) |
+| `--append-system-prompt-file` | Append system prompt from file (-p only) |
+| `--tools` | Limit tools: `"Bash,Edit,Read"` or `""` to disable all |
+| `--allowedTools` | Allow without confirmation: `"Bash(git *)" "Read"` |
+| `--disallowedTools` | Disable specific tools |
+| `--mcp-config` | MCP config: file path or JSON |
+| `--strict-mcp-config` | Use only specified MCP config |
+| `--setting-sources` | Setting sources: `user,project,local` or `""` to disable |
+| `--settings` | Additional settings file |
+| `--permission-mode` | Permission mode: `plan` etc. |
+| `--dangerously-skip-permissions` | Skip all permissions |
+| `--permission-prompt-tool` | MCP tool for permission prompts (-p only) |
+| `--max-budget-usd` | API spend limit (-p only) |
+| `--max-turns` | Turn limit (-p only) |
+| `--json-schema` | Validate output JSON structure (-p only) |
+| `--agent` | Specify agent for current session |
+| `--agents` | Custom sub-agent JSON |
+| `--add-dir` | Add extra working directory |
+| `--chrome` / `--no-chrome` | Enable/disable Chrome browser integration |
+| `--init` / `--init-only` | Run init hooks (latter exits after running) |
+| `--session-id` | Specify session ID (must be UUID) |
+| `--fork-session` | Create new session on resume (with -r/-c) |
+| `--from-pr` | Resume session associated with specified PR |
+| `--remote` | Create web session on claude.ai |
+| `--teleport` | Resume web session to local terminal |
+| `--no-session-persistence` | Disable session persistence (-p only) |
+| `--disable-slash-commands` | Disable slash commands |
+| `--include-partial-messages` | Include partial stream events (requires stream-json) |
+| `--betas` | API beta headers (API key users only) |
+| `--plugin-dir` | Load plugin directory (repeatable) |
+| `--debug` | Debug: `"api,mcp"` or `"!statsig,!file"` |
+| `--verbose` | Verbose output |
 
-## 省 Token 模式
+## Token-Saving Mode
 
-最小化 token 消耗（适合简单任务）：
+Minimize token consumption (suitable for simple tasks):
 
 ```bash
 claude -p \
@@ -73,58 +73,58 @@ claude -p \
   "query"
 ```
 
-效果：76k tokens → 1.5k tokens（约 98% 减少）
+Result: 76k tokens → 1.5k tokens (~98% reduction)
 
-## 结构化输出
+## Structured Output
 
 ```bash
-# 布尔值
+# Boolean
 claude -p --output-format json \
   --json-schema '{"type":"object","properties":{"result":{"type":"boolean"}},"required":["result"]}' \
   "query" | jq '.structured_output'
 
-# 复杂结构
+# Complex structure
 claude -p --output-format json \
   --json-schema '{"type":"object","properties":{"items":{"type":"array","items":{"type":"string"}}},"required":["items"]}' \
   "query"
 ```
 
-## 子代理格式
+## Sub-Agent Format
 
 ```bash
 claude --agents '{
   "reviewer": {
-    "description": "代码审查专家，代码变更后主动使用",
-    "prompt": "你是资深代码审查员，关注质量、安全和最佳实践",
+    "description": "Code review expert, use proactively after code changes",
+    "prompt": "You are a senior code reviewer focusing on quality, security, and best practices",
     "tools": ["Read", "Grep", "Glob"],
     "model": "sonnet"
   }
 }'
 ```
 
-| 字段 | 必须 | 说明 |
-|------|------|------|
-| `description` | 是 | 何时调用的描述 |
-| `prompt` | 是 | 子代理的系统提示 |
-| `tools` | 否 | 可用工具，默认继承全部 |
-| `model` | 否 | `sonnet`/`opus`/`haiku`/`inherit` |
+| Field | Required | Description |
+|-------|----------|-------------|
+| `description` | Yes | When to invoke |
+| `prompt` | Yes | Sub-agent system prompt |
+| `tools` | No | Available tools, inherits all by default |
+| `model` | No | `sonnet`/`opus`/`haiku`/`inherit` |
 
-## System Prompt 策略
+## System Prompt Strategy
 
-| Flag | 行为 | 使用场景 |
-|------|------|----------|
-| `--system-prompt` | 完全替换 | 需要完全控制 |
-| `--append-system-prompt` | 追加 | 保留默认能力（推荐） |
-| `--system-prompt-file` | 从文件替换 | 版本控制提示 |
-| `--append-system-prompt-file` | 从文件追加 | 版本控制追加 |
+| Flag | Behavior | Use Case |
+|------|----------|----------|
+| `--system-prompt` | Full replacement | Need full control |
+| `--append-system-prompt` | Append | Preserve default capabilities (recommended) |
+| `--system-prompt-file` | Replace from file | Version-controlled prompts |
+| `--append-system-prompt-file` | Append from file | Version-controlled appending |
 
-## 与 Codex 对比
+## Comparison with Codex
 
-| 操作 | Claude | Codex |
-|------|--------|-------|
-| 非交互 | `-p` | `exec` |
-| 跳过确认 | `--dangerously-skip-permissions` | `--yolo` |
-| JSON 输出 | `--output-format json` | `--json` |
-| 会话恢复 | `-r` / `-c` | `resume` |
+| Operation | Claude | Codex |
+|-----------|--------|-------|
+| Non-interactive | `-p` | `exec` |
+| Skip confirmation | `--dangerously-skip-permissions` | `--yolo` |
+| JSON output | `--output-format json` | `--json` |
+| Session resume | `-r` / `-c` | `resume` |
 
-文档: https://code.claude.com/docs/llms.txt
+Docs: https://code.claude.com/docs/llms.txt

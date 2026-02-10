@@ -1,19 +1,19 @@
 ---
 name: negate
-description: 否定模式——检验一个结论能否在反面论证下存活
+description: Negation mode — test whether a conclusion can survive counter-argumentation
 ---
 
-输入一个结论，尝试证伪。
+Take a conclusion, attempt to falsify it.
 
-不修补，不提供替代方案。只做判定：这个结论是否经得起否定。
-经得起 → 说明它为什么存活。经不起 → 指出关键缺陷，停止。重建不是 negate 的职责，是 rethink 的。
+No patching, no alternatives. Only a verdict: does this conclusion withstand negation?
+If it does → explain why it survives. If it doesn't → identify the critical defect, stop. Rebuilding is not negate's job — that's rethink's.
 
-过程：
+Process:
 
-1. **复述结论** — 用一句话明确要检验的主张。
-2. **识别关键支撑** — 这个结论依赖什么成立？找到最关键的支撑——可能是单个前提，也可能是多个弱前提的组合。
-3. **否定支撑** — 如果这个支撑不成立，结论会怎样？
-4. **判定** —
-   - 结论不受影响或仅变形 → 该支撑非关键，换下一个，重复 2-3。
-   - 结论不成立 → 指出缺陷和原因，停止。
-   - 涌现新结构 → 报告发现，停止。
+1. **Restate the conclusion** — articulate the claim to be tested in one sentence.
+2. **Identify key supports** — what does this conclusion depend on to hold? Find the most critical support — could be a single premise, or a combination of weak premises.
+3. **Negate the support** — if this support doesn't hold, what happens to the conclusion?
+4. **Verdict** —
+   - Conclusion unaffected or only deformed → this support is non-critical, move to the next one, repeat 2-3.
+   - Conclusion collapses → identify the defect and reason, stop.
+   - New structure emerges → report the finding, stop.

@@ -1,56 +1,56 @@
 ---
 name: debate
-description: 对抗性辩论——spawn 对立立场的 agent team，通过证伪收敛到真相
+description: Adversarial debate — spawn an agent team with opposing positions to converge on truth through falsification
 ---
 
-创建 agent team，围绕同一问题展开结构化辩论。通过证伪而非证实逼近真相。
+Create an agent team to conduct structured debate around a single question. Converge on truth through falsification, not confirmation.
 
-你是主持人，不是参与者。你不形成观点，你组织对抗。启用 delegate 模式。
+You are the moderator, not a participant. You form no opinions — you organize confrontation. Enable delegate mode.
 
-## 流程
+## Process
 
-### 1. 拆解论题
+### 1. Decompose the Thesis
 
-将问题拆为 2-4 个竞争性立场。好的拆分：立场之间互斥或有张力，不是分工。
-如果所有立场指向同一答案，拆分不够锐利，重来。
+Break the question into 2-4 competing positions. Good decomposition: positions are mutually exclusive or in tension, not a division of labor.
+If all positions point to the same answer, the decomposition isn't sharp enough — redo it.
 
-### 2. Spawn teammates
+### 2. Spawn Teammates
 
-为每个立场 spawn 一个 teammate（require plan approval）。Prompt 模板：
+Spawn one teammate per position (require plan approval). Prompt template:
 
 ```
-你是立场「{立场}」的辩护者。
+You are the advocate for position "{position}".
 
-立场：{一句话陈述}
-对手：{其他立场及一句话描述}
+Position: {one-sentence statement}
+Opponents: {other positions with one-sentence descriptions}
 
-规则：
-- 论证必须有可验证的证据（文件:行号、命令输出、具体数据）
-- 收到质疑时必须正面回应：反驳（附证据）、承认但不致命、或 [投降]
-- 发现自己立场的致命缺陷时标记 [弱点]，不隐藏
-- 不允许"很复杂"、"需要更多调查"等拖延话术
-- 完成后向 lead 发最终报告：核心论点、关键证据、已知弱点、是否存活
+Rules:
+- Arguments must have verifiable evidence (file:line, command output, concrete data)
+- When challenged, you must respond directly: refute (with evidence), concede as non-fatal, or [surrender]
+- Mark [weakness] when you discover a fatal flaw in your own position — don't hide it
+- No stalling tactics like "it's complicated" or "needs more investigation"
+- When done, send final report to lead: core arguments, key evidence, known weaknesses, survival status
 ```
 
-### 3. 主持
+### 3. Facilitate
 
-第一轮让 teammate 并行调查。调查完成后推动交锋：
-- 将对手的关键论点原文转发，要求正面回应
-- 如果某个攻击没被回应，视为默认成立
-- 如果 teammate 标记了 [弱点]，转发给对手要求攻击
+Let teammates investigate in parallel in the first round. After investigation, drive confrontation:
+- Forward opponent's key arguments verbatim, demand direct response
+- If an attack goes unanswered, treat it as conceded
+- If a teammate marks [weakness], forward to opponents for attack
 
-收敛信号：有人投降、所有攻击已回应且无新攻击、或核心论点均存活需要综合。
+Convergence signals: someone surrenders, all attacks have been answered with no new attacks, or core arguments all survive and need synthesis.
 
-### 4. 裁决
+### 4. Adjudicate
 
-Shutdown 所有 teammate，输出：
-- **存活立场** — 经受住攻击的结论
-- **被证伪的** — 被什么证据击败
-- **盲区** — 辩论中暴露的所有立场都没考虑到的问题
-- **结论**
+Shutdown all teammates. Output:
+- **Surviving positions** — conclusions that withstood attack
+- **Falsified** — what evidence defeated them
+- **Blind spots** — issues exposed during debate that no position considered
+- **Conclusion**
 
-## 原则
+## Principles
 
-- **主持人不参战** — 转发质疑时不加评判。如果你倾向某方，那是需要额外审视的信号。
-- **证伪优先** — 经受住攻击的弱论点，比从未被质疑的强论点更可信。
-- **标记弱点是诚实，不是失败** — 在裁决中肯定这种行为。
+- **Moderator stays out of the fight** — forward challenges without judgment. If you lean toward one side, that's a signal for extra scrutiny.
+- **Falsification first** — a weak argument that survived attack is more credible than a strong argument that was never challenged.
+- **Marking weakness is honesty, not failure** — acknowledge this behavior in adjudication.

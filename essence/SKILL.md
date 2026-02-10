@@ -1,20 +1,20 @@
 ---
 name: essence
-description: 压缩模式——输出问题的最短生成程序，推导不检索
+description: Compression mode — output the shortest generative program of the problem. Derive, don't retrieve.
 ---
 
-切换到压缩模式。目标：**输出 = 问题的最短生成程序**。
+Switch to compression mode. Goal: **output = shortest generative program of the problem**.
 
-不变量：
+Invariants:
 
-- **不动点** — 不可再压缩。若两个概念共享生成元，它们是一个概念。
-- **诚实** — 不可压缩处显式留白，不用确定语气伪装。
-- **自指** — 此过程也压缩自己。你的视角是投影，不是全空间。
+- **Fixed point** — irreducible. If two concepts share a generator, they are one concept.
+- **Honesty** — leave explicit blanks at incompressible points. Never disguise uncertainty with confident tone.
+- **Self-reference** — this process compresses itself. Your perspective is a projection, not the full space.
 
-过程：
+Process:
 
-1. **推导，不检索** — 从约束出发，让结构涌现。
-2. **列举时停** — 发现自己在列举时，立即停止，你丢失了生成规则。
-3. **矛盾不消解** — 遇到矛盾时不要和稀泥，找到使双方同时为真的更高层结构。
-4. **求对偶，不求分类** — 两个概念是否是同一结构的不同投影。
-5. **宁可优雅不完备，拒绝完备但琐碎**。
+1. **Derive, don't retrieve** — start from constraints, let structure emerge.
+2. **Stop when listing** — if you catch yourself enumerating, stop immediately. You've lost the generating rule.
+3. **Don't resolve contradictions** — when facing a contradiction, don't smooth it over. Find the higher-level structure that makes both sides simultaneously true.
+4. **Seek duality, not classification** — are two concepts different projections of the same structure?
+5. **Prefer elegant incompleteness over complete triviality.**

@@ -68,7 +68,7 @@ Mixing: different steps in the same workflow can use different drivers. Each ste
 
 ### Retry Feedback
 
-On retry, `$PAWL_RETRY_COUNT` and `$PAWL_LAST_VERIFY_OUTPUT` are automatically available. The driver uses these to pass fix context to the agent. `$PAWL_RUN_ID` is stable across retries, used for session continuation.
+On retry, `$PAWL_RETRY_COUNT` and `$PAWL_LAST_VERIFY_OUTPUT` are automatically available. The driver uses these to pass fix context to the agent. `$PAWL_RUN_ID` is stable across retries, used for session continuation. Default retry limit is 3; override per step with `"max_retries": N`.
 
 ### Verify Strategy
 
@@ -150,7 +150,8 @@ Don't put secrets in pawl vars (they appear in logs). Load at shell level:
 ### Pipe Mode (Fully Automatic)
 
 ```bash
-pawl start <task>        # Blocks until completed or failed
+pawl start <task>            # Blocks until completed or failed
+pawl start <task> --reset    # Reset first, then start (one command)
 ```
 
 On failure, check verify_output for diagnosis:
@@ -172,19 +173,23 @@ pawl log <task> --step <N>   # step_finished event contains verify_output
 
 | Method | Command | Scenario |
 |--------|---------|----------|
-| Wait | `pawl wait <task> --until waiting,completed,failed [-t 60]` | Suspend while waiting for results in multi-task parallel |
-| Event stream | `pawl events --follow [--type step_finished,step_yielded]` | Real-time dashboard |
+| Dashboard | `pawl dashboard [--port 3131]` | Live web UI: task cards, DAG, event stream |
+| Wait (any) | `pawl wait task-a task-b --until completed --any` | Return when ANY task finishes |
+| Wait (all) | `pawl wait task-a task-b --until completed [-t 60]` | Return when ALL tasks finish |
+| Event stream | `pawl events --follow [--type step_finished,step_yielded]` | Real-time event tail |
 | Logs | `pawl log <task> --all` | Step-level diagnosis (verify_output) |
 | Agent logs | Read session log directly (path in agent reference) | Tool-level diagnosis (what agent did) |
 | Poll | `pawl list` | One-time status snapshot |
 
-Multi-task parallel wait:
+Multi-task parallel orchestration:
 
 ```bash
-pawl wait task-a --until waiting,completed,failed &
-pawl wait task-b --until waiting,completed,failed &
-wait
-pawl list   # All settled, process one by one
+# Launch all tasks (deps enforced automatically)
+for task in $(pawl list | jq -r '.[].name'); do pawl start "$task" & done
+
+# Wait for any to need attention, process one by one
+pawl wait task-a task-b --until waiting,completed,failed --any
+pawl list   # Check which settled, act accordingly
 ```
 
 ### Key Constraints
@@ -197,7 +202,7 @@ pawl list   # All settled, process one by one
 
 | Symptom | Cause | Solution |
 |---------|-------|----------|
-| "Task already running" | Another pawl start is running | `pawl stop <task> && pawl start <task>` |
+| "Task already running" | Another pawl start is running | `pawl stop <task> && pawl start <task>` or `pawl start <task> --reset` |
 | viewport_lost but process alive | Viewport name conflict | `tmux list-windows -t <session>` to check |
 | Dependency blocked | Predecessor task not completed | `pawl list` to find blocking source |
 | JSONL corrupted | Write interrupted | `pawl reset` |

@@ -1,8 +1,23 @@
 # Agent Skills
 
-A collection of reusable skills for [Claude Code](https://claude.com/claude-code). Each skill extends Claude's capabilities with specialized workflows, thinking modes, and tool integrations.
+Reusable skills for [Claude Code](https://claude.com/claude-code) — thinking modes, workflows, and agent orchestration. Distributed as a Claude Code plugin marketplace.
 
-## Skills
+## Install
+
+```bash
+# Register the marketplace
+/plugin marketplace add yansircc/agent-skills
+
+# Install plugins
+/plugin install agent-skills@yansircc-skills
+/plugin install pawl-foreman@yansircc-skills    # optional, for pawl orchestration
+```
+
+## Plugins
+
+### agent-skills
+
+Thinking, workflow, and tool reference skills.
 
 | Skill | Description |
 |-------|-------------|
@@ -14,41 +29,33 @@ A collection of reusable skills for [Claude Code](https://claude.com/claude-code
 | **interview** | Co-creation mode — structured questioning to sharpen vague ideas |
 | **less-is-more** | Addition by Subtraction — resist over-engineering, enforce simplicity |
 | **negate** | Negation mode — test whether a conclusion survives counter-argumentation |
-| **pawl-foreman** | AI agent foreman — orchestrate multi-step tasks using [pawl](https://github.com/yansircc/pawl) |
 | **pickup** | Quickly pick up a project and understand the current development state |
+| **publish-skill** | Guide for packaging and publishing skills to a marketplace |
 | **refactor** | Analyze and optimize code following software engineering best practices |
 | **rethink** | Informed reset — redesign with known information to break anchoring bias |
 | **skill-creator** | Guide for creating effective skills |
 
-## Install
-
-Clone into your Claude Code skills directory:
-
-```bash
-git clone https://github.com/yansircc/agent-skills.git ~/.claude/skills
+Usage:
+```
+/agent-skills:debate Should we use a monorepo or polyrepo?
+/agent-skills:essence What is dependency injection?
+/agent-skills:rethink
 ```
 
-Or symlink if you want to keep it elsewhere:
+### pawl-foreman
 
-```bash
-git clone https://github.com/yansircc/agent-skills.git ~/code/agent-skills
-ln -s ~/code/agent-skills ~/.claude/skills
+AI agent foreman — orchestrate multi-step tasks using [pawl](https://github.com/yansircc/pawl).
+
+Usage:
+```
+/pawl-foreman:pawl-foreman
 ```
 
-## Usage
+## Creating Skills
 
-Skills are automatically available in Claude Code. Invoke them with slash commands:
-
-```
-/debate Should we use a monorepo or polyrepo?
-/essence What is dependency injection?
-/interview I want to build a CLI tool...
-/rethink
-```
+Use `/agent-skills:skill-creator` to write a new skill, then `/agent-skills:publish-skill` to package and publish it.
 
 ## Skill Structure
-
-Each skill follows this structure:
 
 ```
 skill-name/
@@ -56,8 +63,6 @@ skill-name/
 ├── scripts/              # Executable scripts (token-efficient, run without loading).
 └── references/           # On-demand documentation (loaded when needed).
 ```
-
-See [skill-creator](skill-creator/SKILL.md) for the full guide on creating skills.
 
 ## License
 

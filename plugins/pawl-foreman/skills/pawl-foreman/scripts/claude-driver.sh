@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Claude Code adapter for pawl — see references/cc.md
-# Usually, there is no need to modify this script. To switch between Pipe and TUI, just change the run and in_viewport in config.json.
+# Usually, there is no need to modify this script. To switch between Pipe and TUI, just change the run and in_viewport in workflow file.
 set -euo pipefail
 
 FLAGS=(--allowedTools "${CLAUDE_ALLOWED_TOOLS:-Bash,Read,Write,Edit,Glob,Grep}")
 [ -t 0 ] || FLAGS+=(-p)
 
-# Per-step customization via env vars (set in config.json run command)
+# Per-step customization via env vars (set in workflow file run command)
 [ -n "${CLAUDE_TOOLS:-}" ] && FLAGS+=(--tools "$CLAUDE_TOOLS")
 [ -n "${CLAUDE_SYSTEM_PROMPT_FILE:-}" ] && FLAGS+=(--append-system-prompt-file "$CLAUDE_SYSTEM_PROMPT_FILE")
 [ -n "${CLAUDE_MODEL:-}" ] && FLAGS+=(--model "$CLAUDE_MODEL")

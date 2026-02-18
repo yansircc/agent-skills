@@ -26,7 +26,7 @@ User says "start/supervise/run" → Supervision section
 
 ### Config Conventions
 
-In config.json, use vars to define the driver (script that launches the agent, located in this skill's `scripts/`) and prompt path:
+In workflow file, use vars to define the driver (script that launches the agent, located in this skill's `scripts/`) and prompt path:
 
 ```json
 {

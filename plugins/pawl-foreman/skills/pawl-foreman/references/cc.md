@@ -2,7 +2,7 @@
 
 ## Permissions
 
-The driver defaults to `--allowedTools "Bash,Read,Write,Edit,Glob,Grep"` — enough for most coding tasks. Customize via `CLAUDE_ALLOWED_TOOLS` env var in your config.json run command:
+The driver defaults to `--allowedTools "Bash,Read,Write,Edit,Glob,Grep"` — enough for most coding tasks. Customize via `CLAUDE_ALLOWED_TOOLS` env var in your workflow file run command:
 
 ```json
 { "run": "CLAUDE_ALLOWED_TOOLS='Bash,Read,Write,Edit,Glob,Grep,WebFetch' cat ${prompt} | ${driver}" }

@@ -173,7 +173,7 @@ pawl log <task> --step <N>   # step_finished event contains verify_output
 
 | Method | Command | Scenario |
 |--------|---------|----------|
-| Dashboard | `pawl serve --ui <skill-dir>/ui/dashboard.html` | Live web UI: task cards, DAG, event stream |
+| Dashboard | `pawl serve --ui <skill-dir>/ui/dist/index.html` | Live web UI: task cards, DAG, event stream |
 | Wait (any) | `pawl wait task-a task-b --until completed --any` | Return when ANY task finishes |
 | Wait (all) | `pawl wait task-a task-b --until completed [-t 60]` | Return when ALL tasks finish |
 | Event stream | `pawl events --follow [--type step_finished,step_yielded]` | Real-time event tail |

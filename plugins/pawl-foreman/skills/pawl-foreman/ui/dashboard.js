@@ -151,8 +151,14 @@ function buildCardHtml(t) {
 
 function renderTasks(data) {
     document.getElementById('project-path').textContent = data.project_root;
-    document.getElementById('workflow-bar').textContent = data.workflow_steps.join(' \u2192 ');
-    configuredHooks = data.hooks || {};
+    const wfs = data.workflows || {};
+    const wfNames = Object.keys(wfs);
+    document.getElementById('workflow-bar').textContent = wfNames.map(n => {
+        const w = wfs[n];
+        return (wfNames.length > 1 ? n + ': ' : '') + w.steps.join(' \u2192 ');
+    }).join('  |  ');
+    configuredHooks = {};
+    for (const w of Object.values(wfs)) Object.assign(configuredHooks, w.hooks || {});
     renderSummary(data.tasks);
 
     const el = document.getElementById('tasks');

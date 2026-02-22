@@ -122,7 +122,7 @@ function buildCardHtml(t) {
 
     // Stream panel (only when visible and has content)
     const streamHtml = (hasStream && ss.visible)
-        ? `<div class="stream-panel" id="stream-${t.name}">${ss.lines.slice(-100).map(l => `<div class="sl ${l.cls}">${esc(l.text)}</div>`).join('')}</div>`
+        ? `<div class="stream-panel" id="stream-${t.name}">${ss.lines.slice(-100).map(renderStreamLine).join('')}</div>`
         : '';
 
     // State key for diff detection (excludes elapsed time which changes every render)
@@ -262,29 +262,101 @@ function toggleStream(taskName) {
 function parseStreamLine(raw) {
     try {
         const obj = JSON.parse(raw);
+
+        // system messages
+        if (obj.type === 'system') {
+            if (obj.subtype === 'init') {
+                const model = (obj.model || 'unknown').replace(/^claude-/, '').replace(/-\d{8,}$/, '');
+                const toolCount = Array.isArray(obj.tools) ? obj.tools.length : 0;
+                return { cls: 'sl-system', text: `\u2699 ${model} \u00B7 ${toolCount} tools` };
+            }
+            if (obj.subtype === 'compact_boundary') {
+                const trigger = obj.compact_metadata?.trigger || 'auto';
+                return { cls: 'sl-system', text: `\u27F3 context compacted (${trigger})` };
+            }
+            return null; // skip hook events etc
+        }
+
+        // assistant messages
         if (obj.type === 'assistant' && obj.message) {
             const content = obj.message.content;
             if (Array.isArray(content)) {
                 for (const block of content) {
+                    if (block.type === 'thinking' && block.thinking) {
+                        return { cls: 'sl-think', text: '\uD83D\uDCAD thinking...', collapsible: true, detail: block.thinking.slice(0, 500) };
+                    }
                     if (block.type === 'text' && block.text) {
                         return { cls: 'sl-text', text: block.text.slice(0, 200) };
                     }
                     if (block.type === 'tool_use') {
-                        return { cls: 'sl-tool', text: `[tool] ${block.name || 'unknown'}` };
+                        const name = block.name || 'unknown';
+                        let arg = '';
+                        if (block.input) {
+                            if (block.input.command) arg = block.input.command.split('\n')[0].slice(0, 60);
+                            else if (block.input.file_path) arg = block.input.file_path;
+                            else if (block.input.pattern) arg = block.input.pattern;
+                            else if (block.input.query) arg = block.input.query.slice(0, 60);
+                        }
+                        return { cls: 'sl-tool', text: `\uD83D\uDD27 ${name}${arg ? ': ' + arg : ''}` };
                     }
                 }
             }
-            return { cls: 'sl-raw', text: `[${obj.type}]` };
+            return null;
         }
+
+        // user messages (tool results)
+        if (obj.type === 'user' && obj.message) {
+            const content = obj.message.content;
+            if (Array.isArray(content)) {
+                for (const block of content) {
+                    if (block.type === 'tool_result') {
+                        const text = typeof block.content === 'string' ? block.content : '';
+                        if (block.is_error) {
+                            return { cls: 'sl-output sl-result-err', text: `  \u21B3 error: ${text.slice(0, 120)}` };
+                        }
+                        // Successful result: show stdout summary from top-level tool_use_result
+                        const tur = obj.tool_use_result;
+                        if (tur && typeof tur === 'object' && tur.stdout) {
+                            const lines = tur.stdout.split('\n').filter(l => l.trim());
+                            return { cls: 'sl-output', text: `  \u21B3 ${lines[0]?.slice(0, 80) || '(empty)'}${lines.length > 1 ? ` (+${lines.length - 1} lines)` : ''}` };
+                        }
+                        if (text) {
+                            const lines = text.split('\n').filter(l => l.trim());
+                            return { cls: 'sl-output', text: `  \u21B3 ${lines[0]?.slice(0, 80) || '(empty)'}${lines.length > 1 ? ` (+${lines.length - 1} lines)` : ''}` };
+                        }
+                        return { cls: 'sl-output', text: '  \u21B3 (ok)' };
+                    }
+                }
+            }
+            return null;
+        }
+
+        // result
         if (obj.type === 'result') {
-            const cost = obj.cost_usd != null ? ` cost=$${obj.cost_usd.toFixed(4)}` : '';
-            return { cls: 'sl-result', text: `[done]${cost}` };
+            if (obj.subtype && obj.subtype !== 'success') {
+                const reason = obj.subtype.replace(/^error_?/, '').replace(/_/g, ' ') || 'error';
+                const msg = obj.result || obj.error || reason;
+                return { cls: 'sl-result-err', text: `\u2717 ${reason}: ${typeof msg === 'string' ? msg.slice(0, 120) : reason}` };
+            }
+            const parts = ['\u2713 done'];
+            if (obj.total_cost_usd != null) parts.push('$' + obj.total_cost_usd.toFixed(4));
+            if (obj.duration_ms != null) parts.push((obj.duration_ms / 1000).toFixed(1) + 's');
+            if (obj.usage && obj.usage.output_tokens != null) parts.push(obj.usage.output_tokens + ' tokens out');
+            return { cls: 'sl-result-ok', text: parts.join(' \u00B7 ') };
         }
+
         return { cls: 'sl-raw', text: `[${obj.type || 'json'}]` };
     } catch {
         if (!raw.trim()) return null;
         return { cls: 'sl-raw', text: raw.slice(0, 200) };
     }
+}
+
+function renderStreamLine(l) {
+    if (l.collapsible && l.detail) {
+        return `<div class="sl ${l.cls}" onclick="this.classList.toggle('expanded')">${esc(l.text)}<div class="think-detail">${esc(l.detail)}</div></div>`;
+    }
+    return `<div class="sl ${l.cls}">${esc(l.text)}</div>`;
 }
 
 async function fetchStreams(tasks) {
@@ -336,7 +408,7 @@ function appendStreamContent(taskName, content, newOffset) {
     if (ss.visible) {
         const panel = document.getElementById('stream-' + taskName);
         if (panel) {
-            panel.innerHTML = ss.lines.slice(-100).map(l => `<div class="sl ${l.cls}">${esc(l.text)}</div>`).join('');
+            panel.innerHTML = ss.lines.slice(-100).map(renderStreamLine).join('');
             panel.scrollTop = panel.scrollHeight;
         }
     }

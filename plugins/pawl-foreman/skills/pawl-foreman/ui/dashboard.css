@@ -323,7 +323,14 @@ header {
     line-height: 1.5;
 }
 .stream-panel .sl { white-space: pre-wrap; word-break: break-all; }
+.stream-panel .sl-system { color: #6c7086; font-size: 10px; }
+.stream-panel .sl-think { color: #9399b2; font-style: italic; cursor: pointer; }
+.stream-panel .sl-think:hover { color: #b4b9d4; }
+.stream-panel .sl-think .think-detail { display: none; font-style: normal; padding: 2px 0 2px 16px; color: #7f849c; font-size: 10px; }
+.stream-panel .sl-think.expanded .think-detail { display: block; }
 .stream-panel .sl-text { color: #89b4fa; }
 .stream-panel .sl-tool { color: #f9e2af; }
-.stream-panel .sl-result { color: #a6e3a1; }
+.stream-panel .sl-result-ok { color: #a6e3a1; }
+.stream-panel .sl-result-err { color: #f38ba8; }
+.stream-panel .sl-output { color: #7f849c; padding-left: 16px; }
 .stream-panel .sl-raw { color: #6c7086; }

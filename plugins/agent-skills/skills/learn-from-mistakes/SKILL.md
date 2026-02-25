@@ -25,13 +25,26 @@ Before recording, answer these meta-questions:
 **1. One-off typo or recurring trap?**
 Typos aren't worth recording. Structural traps are — framework limitations, unintuitive API semantics, environment differences.
 
-**2. What keyword will appear in code next time this trap is hit?**
-That keyword is your `match`. If you can't name it, you haven't understood the trap yet.
+**2. What is the general class of this bug?**
+Think beyond the specific instance. Name the *structural pattern*, not the variable name.
+- BAD: "the `_db` variable was cached globally" (instance-specific)
+- GOOD: "module-level connection singleton in serverless runtime" (class-level)
 
-**3. What does a future agent need to know to avoid this?**
+This shapes your `match` — it should catch the class, not just today's instance.
+
+**3. What regex will catch this class of bug?**
+Write a `match` that fires when code *structurally resembles* the trap, then validate:
+- **Variants**: Would it catch `export const x = db.select()`? (not just `const`)
+- **Renamed**: Would it catch `let conn = null`? (not just `_db`)
+- **Safe patterns**: Does it false-positive on `import type { db }`? (type imports are safe)
+- **Engine compatible**: Check your project's `guardrails.sh` to see what regex engine it uses, and ensure your pattern is compatible.
+
+When in doubt, wider is better — an occasional false-positive warning is cheap; a missed trap is expensive.
+
+**4. What does a future agent need to know to avoid this?**
 Write for an agent that has never seen this bug. Include: symptom, root cause, correct approach.
 
-**4. Warn or hard block?**
+**5. Warn or hard block?**
 Default to `inject` (warning). Use `block` only for irreversible operations.
 
 ### Mistake File Format
@@ -45,13 +58,25 @@ action: inject
 ---
 # D1 batch insert must limit batch size
 
-D1/SQLite variable limit is ~999. Use BATCH_SIZE <= 10 for batch inserts.
+## Symptom
+Batch insert silently fails or throws "too many SQL variables" at runtime.
+
+## Root Cause
+D1/SQLite variable limit is ~999. A batch of 100 rows × 10 columns = 1000 variables → exceeds limit.
+
+## Correct Approach
+Use BATCH_SIZE <= 10 for batch inserts. Loop in chunks.
 ```
 
-Fields:
-- `match` — regex, matched against edit content / command text (NOT file paths)
+#### Frontmatter fields
+- `match` — regex, matched against edit content / command text (NOT file paths). Engine depends on project's `guardrails.sh`
 - `action` — `inject` (warn) or `block` (hard block)
 - `message` — required when action=block, the rejection message shown to agent
+
+#### Body sections (recommended)
+- **Symptom** — what the agent will see (error message, behavior)
+- **Root Cause** — why it happens (1-2 sentences)
+- **Correct Approach** — what to do instead (code example if helpful)
 
 ### Match Guidelines
 
@@ -67,6 +92,15 @@ Path matching only when location IS the semantics:
 ```
 OK:   match: drizzle/.*\.sql      → touching migration files deserves a reminder
 ```
+
+**Prefer class-level matches over instance-level:**
+
+```
+NARROW: let _db.*=.*null                          → only catches this exact variable name
+WIDER:  let (_db|dbInstance|dbCache|globalDb).*=   → catches the pattern regardless of naming
+```
+
+**Regex engine constraints**: Each project's `guardrails.sh` determines what regex features are available. Check the script header for engine-specific notes before writing patterns.
 
 ## Lifecycle
 

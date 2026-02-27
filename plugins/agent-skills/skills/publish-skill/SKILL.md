@@ -4,7 +4,7 @@ description: >-
   Guide for packaging and publishing skills to a Claude Code plugin marketplace.
   Use when users say "publish skill", "publish to marketplace", "add skill to marketplace",
   "package skill as plugin", or "distribute skill".
-version: 1.0.0
+version: 1.0.1
 ---
 
 # Publish Skill

@@ -24,9 +24,100 @@ User says "start/supervise/run" → Supervision section
 
 ## Orchestration
 
-### Config Conventions
+Orchestration has three phases: **think → validate → scale**. Never skip straight to config.
 
-In workflow file, use vars to define the driver (script that launches the agent, located in this skill's `scripts/`) and prompt path:
+### Phase 1: Pre-flight
+
+Before writing any workflow file, answer these questions sequentially. Each layer's output feeds the next.
+
+#### Classify — what's fixed, what needs a brain?
+
+List every piece of work needed to achieve the goal. For each item, ask:
+
+> Is the input AND output fully determined?
+
+- **Yes → Foreman step.** git branch, worktree create, dependency install, file copy, merge, cleanup, deploy. Foreman runs these as shell commands — no agent involved.
+- **No → Worker task.** The output requires reasoning, creativity, or judgment. Only these get assigned to a worker agent.
+
+The line is simple: if you can write it as a shell command with a predictable outcome, it's a foreman step. Workers only do work where the output is uncertain.
+
+#### Size — will the worker finish within 200K context?
+
+For each worker task from the previous step:
+
+> How much context does the worker need to read? How large is the expected change?
+
+Token budget for a 200K context window:
+- System prompt + tool definitions: ~20K
+- Reserve ~40% for tool call interactions (reads, writes, edits, test runs)
+- Leaves ~100K for reading source files + generating output
+
+Sizing rules:
+
+| Signal | Action |
+|--------|--------|
+| Expected work < 10 tool calls | **Merge** with an adjacent task. Agent startup overhead (~20K tokens) makes tiny tasks wasteful. |
+| Needs to read > 15-20 files for context | **Split** along a natural seam (module, layer, or feature boundary). |
+| Touches > 8-10 files | **Split.** Large change sets increase conflict risk and make verify harder. |
+| One coherent unit of change, 1-5 files | **Right-sized.** Focused reads, related changes, independently verifiable. |
+
+#### Serve — can the worker start immediately and leave cleanly?
+
+For each worker task:
+
+> When the worker starts, does it have everything it needs? When it finishes, does it owe anything?
+
+- **Before** — what environment prep is needed? Create branch, worktree, install deps, generate boilerplate, copy templates → these are foreman **setup** steps, run BEFORE the worker.
+- **After** — what post-processing follows? Run full test suite, merge to main, clean up worktree, deploy → these are foreman **post** steps, run AFTER the worker.
+- **Prompt** — is it self-contained? Must contain: goal (desired outcome, not steps), constraints (tech choices, scope, standards), acceptance criteria (maps to verify). Worker should never need to "explore to understand what to do."
+
+#### Pre-flight output
+
+A task list where each task follows this shape:
+
+```
+setup  (foreman) → deterministic shell commands, no agent
+work   (worker)  → the ONE creative step that needs an agent
+post   (foreman) → deterministic shell commands, no agent
+```
+
+Workers only touch the middle. Foreman does the rest.
+
+### Phase 2: Minimal Closed Loop
+
+**Don't start all tasks.** Pick ONE task — the simplest or most representative — and run it through the full pipeline end-to-end:
+
+1. Foreman executes setup steps (worktree, branch, deps)
+2. Worker runs with the prompt
+3. Verify fires and produces a clear pass/fail
+4. Foreman executes post steps (merge, cleanup)
+5. Confirm the deliverable is correct
+
+What you're validating:
+
+| Check | Failure symptom if skipped |
+|-------|---------------------------|
+| Driver launches correctly | "command not found", permission denied |
+| Prompt produces right-shaped output | Worker goes off-track, modifies wrong files |
+| Verify catches both pass AND fail | Silent false-positive, blind retry loops |
+| Worktree/branch ops work | Merge conflicts, wrong paths in verify |
+| Post steps succeed | Orphaned worktrees, unmerged branches |
+
+If any step fails → fix the pipeline before scaling. One broken task is cheap to debug; eight tasks failing the same way is not.
+
+### Phase 3: Scale
+
+Closed loop passed → start remaining tasks. See **Supervision** for monitoring and intervention patterns.
+
+---
+
+### Config Reference
+
+The sections below are reference material for configuring workflow files. Consult as needed during the phases above.
+
+#### Workflow File Conventions
+
+In the workflow file, use vars to define the driver (script that launches the agent, located in this skill's `scripts/`) and prompt path:
 
 ```json
 {
@@ -35,42 +126,42 @@ In workflow file, use vars to define the driver (script that launches the agent,
     "prompt": "<path-to>/${task}.md"
   },
   "workflow": [
-    { "name": "develop", "run": "PROMPT_FILE=${prompt} ${driver}",
+    { "name": "develop", "run": "cat ${prompt} | ${driver}",
       "in_viewport": true, "verify": "...", "on_fail": "retry" }
   ]
 }
 ```
 
-### Pipe vs TUI
+#### Execution Mode
 
-| Mode | run | Behavior |
-|------|-----|----------|
-| Pipe | `"cat ${prompt} \| ${driver}"` | Agent reads stdin, auto-exits on completion → verify runs automatically |
-| TUI | `"PROMPT_FILE=${prompt} ${driver}", "in_viewport": true` | Agent runs interactively, requires completion detection and shutdown trigger |
+The driver runs in **pipe mode** (`-p --verbose --output-format stream-json`). Use `in_viewport: true` to make output visible in a tmux window for real-time monitoring.
 
-Pipe suits deterministic tasks (fully automatic). TUI suits tasks requiring interaction, observation, or creativity.
+| Visibility | run | Behavior |
+|------------|-----|----------|
+| Background | `"cat ${prompt} \| ${driver}"` | Agent runs headless, verify runs on exit |
+| Viewport | `"cat ${prompt} \| ${driver}"`, `"in_viewport": true` | Same pipe mode, but output visible in tmux window |
 
-**Principle: the driver is mode-agnostic — switching modes only changes config**. The driver internally uses `[ -t 0 ]` to auto-detect stdin; it should never be modified for mode switching. Switching Pipe ↔ TUI only requires changing the `run` format and `in_viewport` field.
+Use `in_viewport: true` when you want to watch the agent's stream-json output in real-time. The agent behavior is identical either way — only visibility differs.
 
-### Task Prompt
+#### Task Prompt
 
-pawl doesn't manage prompts. Create prompt files (path corresponds to `${prompt}` in vars), containing: goal (desired outcome, not steps), constraints (tech choices, scope, standards), acceptance criteria (maps to verify commands).
+pawl doesn't manage prompts. Create prompt files (path corresponds to `${prompt}` in vars), containing: goal (desired outcome, not steps), constraints (tech choices, scope, standards), acceptance criteria (maps to verify commands). The prompt must be **self-contained** — the worker should be able to start productive work immediately without exploring to figure out what to do.
 
-### Agent Selection
+#### Agent Selection
 
 | Characteristic | Recommendation |
 |---------------|----------------|
-| Creative work (design, refactoring, complex bugs) | Claude Code (TUI) |
-| Mechanical work (batch changes, formatting, migration) | Codex (pipe) |
-| Critical steps requiring human intervention | TUI + manual verify |
+| Creative work (design, refactoring, complex bugs) | Claude Code |
+| Semi-mechanical work requiring some judgment | Codex |
+| Critical steps requiring human review | pipe + manual verify |
 
 Mixing: different steps in the same workflow can use different drivers. Each step's `run` points to its own driver script.
 
-### Retry Feedback
+#### Retry Feedback
 
 On retry, `$PAWL_RETRY_COUNT` and `$PAWL_LAST_VERIFY_OUTPUT` are automatically available. The driver uses these to pass fix context to the agent. `$PAWL_RUN_ID` is stable across retries, used for session continuation. Default retry limit is 3; override per step with `"max_retries": N`.
 
-### Verify Strategy
+#### Verify Strategy
 
 | Scenario | verify | on_fail | Effect |
 |----------|--------|---------|--------|
@@ -84,7 +175,7 @@ Two constraints:
 1. **verify = completeness + correctness**. Correctness (tests pass) isn't enough — an empty project passes tests too. In worktree scenarios, add completeness checks (files changed). Note that `git diff` doesn't include untracked files — use `git ls-files --others`.
 2. **verify failure must produce output**. Silent failure turns retry into blind repetition. For each verify clause, ask: what does it print on failure? If nothing, add `|| { echo "..." >&2; false; }`.
 
-### Work Step Composition
+#### Work Step Composition
 
 Two orthogonal dimensions:
 
@@ -93,22 +184,21 @@ Two orthogonal dimensions:
 | **viewport** | `"in_viewport": true, "verify": "<test>", "on_fail": "retry"` | `"in_viewport": true, "verify": "manual", "on_fail": "manual"` |
 | **sync** | `"on_fail": "retry"` | `"verify": "manual"` |
 
-### Multi-Step Composition
+#### Multi-Step Composition
 
-Split work into sequential steps, each with different verify strategy (e.g., plan → execute):
+Split work into sequential steps, each with different verify strategy (e.g., develop → typecheck):
 
 ```json
-{ "name": "plan",    "run": "PROMPT_FILE=... ${driver}",
-  "in_viewport": true, "verify": "manual", "on_fail": "manual" },
-{ "name": "develop", "run": "PROMPT_FILE=... ${driver}",
-  "in_viewport": true, "verify": "cargo test", "on_fail": "retry" }
+{ "name": "develop", "run": "cat ${prompt} | ${driver}",
+  "in_viewport": true, "verify": "cd ${worktree} && git diff --name-only HEAD | grep -q .",
+  "on_fail": "retry" },
+{ "name": "typecheck", "run": "cd ${worktree} && bun typecheck",
+  "verify": "true", "on_fail": "retry" }
 ```
 
-Plan rejected: `pawl reset --step` to roll back the plan step.
+#### Git Worktree Skeleton
 
-### Git Worktree Skeleton
-
-Use worktrees to isolate file changes per task. Define git variables in `vars`, reference in workflow:
+Use worktrees to isolate file changes per task. Note the foreman/worker separation — setup, merge, and cleanup are deterministic foreman steps; only develop needs a worker:
 
 ```json
 {
@@ -119,7 +209,7 @@ Use worktrees to isolate file changes per task. Define git variables in `vars`, 
   },
   "workflow": [
     { "name": "setup",   "run": "git branch ${branch} ${base_branch} 2>/dev/null; git worktree add ${worktree} ${branch}" },
-    { "name": "develop", "run": "PROMPT_FILE=... ${driver}",
+    { "name": "develop", "run": "cat ${prompt} | ${driver}",
       "in_viewport": true, "verify": "cd ${worktree} && <completeness> && <test>",
       "on_fail": "retry" },
     { "name": "merge",   "run": "cd ${project_root} && git merge --squash ${branch} && git commit -m 'feat(${task}): merge'" },
@@ -130,7 +220,7 @@ Use worktrees to isolate file changes per task. Define git variables in `vars`, 
 
 Multi-task: `pawl start task-a && pawl start task-b` — each task gets independent JSONL/worktree/viewport.
 
-### .env Secrets
+#### .env Secrets
 
 Don't put secrets in pawl vars (they appear in logs). Load at shell level:
 
@@ -147,12 +237,14 @@ Don't put secrets in pawl vars (they appear in logs). Load at shell level:
 
 ## Supervision
 
-### Pipe Mode (Fully Automatic)
+### Running Tasks
 
 ```bash
 pawl start <task>            # Blocks until completed or failed
 pawl start <task> --reset    # Reset first, then start (one command)
 ```
+
+With `in_viewport: true`, the agent runs in a tmux window — stream-json output is visible in real-time. The agent auto-exits when done; verify runs automatically.
 
 On failure, check verify_output for diagnosis:
 
@@ -160,14 +252,7 @@ On failure, check verify_output for diagnosis:
 pawl log <task> --step <N>   # step_finished event contains verify_output
 ```
 
-### TUI Mode (Semi-Automatic)
-
-1. `pawl start <task>` → viewport launches, returns immediately
-2. Read agent session log to check output (path in agent reference)
-3. Detect agent completion → trigger shutdown (shutdown method varies by agent, see agent reference)
-4. `pawl _run` captures exit → auto-runs verify → complete or retry
-
-**Fallback**: `pawl done <task>` sends exit_code=0 to settle_step (verify still runs). Use when shutdown methods are inconvenient.
+**Fallback**: `pawl done <task>` sends exit_code=0 if the agent hangs (verify still runs).
 
 ### Monitoring Tools
 
@@ -195,7 +280,6 @@ pawl list   # Check which settled, act accordingly
 ### Key Constraints
 
 - **Viewport failure has two paths**: (1) Normal: viewport killed → `_run` captures → normal failure routing (retry/yield/fail per on_fail). (2) Safety net: `_run` crashes → `viewport_lost` passively detected by status/list/wait/done. Periodic polling catches path 2.
-- **in_viewport completion has two paths**: (A) Agent exits (or graceful shutdown) → `_run` → verify. (B) `pawl done` → verify. **Prefer A** — clean process lifecycle.
 - **Retries exhausted**: After max_retries, status becomes Failed, requires human intervention.
 
 ### Troubleshooting
@@ -206,7 +290,7 @@ pawl list   # Check which settled, act accordingly
 | viewport_lost but process alive | Viewport name conflict | `tmux list-windows -t <session>` to check |
 | Dependency blocked | Predecessor task not completed | `pawl list` to find blocking source |
 | JSONL corrupted | Write interrupted | `pawl reset` |
-| Agent finished but step still running | TUI agent doesn't auto-exit | Read session log to confirm completion → trigger shutdown (see agent reference) |
+| Agent finished but step still running | Agent hung | `pawl done <task>` to force complete |
 
 ---
 

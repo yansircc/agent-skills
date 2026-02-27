@@ -16,27 +16,13 @@ FLAGS=(--dangerously-skip-permissions)
 
 This is useful for local development in sandboxed environments but not recommended for production.
 
-## TUI Graceful Shutdown
+## Execution Mode
 
-Claude TUI swallows Ctrl+C when the input box is focused. You must exit input mode first:
+The driver always runs with `-p --verbose --output-format stream-json`. No interactive TUI — the agent reads its prompt from stdin and outputs stream-json to stdout.
 
-```bash
-tmux send-keys -t <session>:<task> Escape
-sleep 0.5
-tmux send-keys -t <session>:<task> C-c
-sleep 0.5
-tmux send-keys -t <session>:<task> C-c
-```
+Use `in_viewport: true` in the workflow to run in a tmux window for real-time visibility. The agent auto-exits when done; no manual shutdown needed.
 
-→ exit code 0 → `_run` captures → settle_step runs verify normally.
-
-**Fallback**: `pawl done <task>` sends exit_code=0 (verify still runs, but process lifecycle is less clean than graceful shutdown).
-
-## Completion Detection
-
-Read the session log, find the most recent `type: "assistant"` entry. If the last content block is `type: "text"` (not `type: "tool_use"`) → agent has finished working, waiting for input.
-
-Trigger graceful shutdown at this point.
+**Fallback**: `pawl done <task>` sends exit_code=0 if the agent hangs (verify still runs).
 
 ## Session Log
 

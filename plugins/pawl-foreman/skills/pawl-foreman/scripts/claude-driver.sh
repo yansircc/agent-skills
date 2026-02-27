@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# Claude Code adapter for pawl — see references/cc.md
-# Usually, there is no need to modify this script. To switch between Pipe and TUI, just change the run and in_viewport in workflow file.
+# Claude Code adapter for pawl — non-interactive pipe mode with stream-json output
+# Use in_viewport: true in workflow to watch output in tmux
 set -euo pipefail
 
-FLAGS=(--allowedTools "${CLAUDE_ALLOWED_TOOLS:-Bash,Read,Write,Edit,Glob,Grep}")
-[ -t 0 ] || FLAGS+=(-p)
+FLAGS=(
+  -p
+  --verbose
+  --output-format stream-json
+  --allowedTools "${CLAUDE_ALLOWED_TOOLS:-Bash,Read,Write,Edit,Glob,Grep}"
+)
 
 # Per-step customization via env vars (set in workflow file run command)
 [ -n "${CLAUDE_TOOLS:-}" ] && FLAGS+=(--tools "$CLAUDE_TOOLS")
@@ -20,10 +24,5 @@ if [ "${PAWL_RETRY_COUNT:-0}" -gt 0 ]; then
   claude "${FLAGS[@]}" -r "$SID" \
     -- "Fix: ${PAWL_LAST_VERIFY_OUTPUT:-verify failed}"
 else
-  if [ -t 0 ]; then
-    claude "${FLAGS[@]}" --session-id "$SID" \
-      -- "$(cat "$PROMPT_FILE")"
-  else
-    claude "${FLAGS[@]}" --session-id "$SID"
-  fi
+  claude "${FLAGS[@]}" --session-id "$SID"
 fi

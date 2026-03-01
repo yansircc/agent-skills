@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Reusable skills for Claude Code — thinking modes, workflows, and agent orchestration",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "pluginRoot": "."
   },
   "plugins": [
@@ -13,7 +13,7 @@
       "name": "agent-skills",
       "source": "./plugins/agent-skills",
       "description": "Thinking, workflow, and tool reference skills for Claude Code",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "author": {
         "name": "yansircc"
       }
@@ -22,7 +22,7 @@
       "name": "pawl-foreman",
       "source": "./plugins/pawl-foreman",
       "description": "AI agent foreman — orchestrate multi-step tasks using pawl",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "author": {
         "name": "yansircc"
       }

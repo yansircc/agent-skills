@@ -5,6 +5,27 @@ description: Activate code hygiene mode — eliminate dead code and keep the cod
 
 Greenfield mode. This is a personal project with no external consumers and no backward-compatibility burden. Every change is an opportunity to refine the codebase — code should get smaller and clearer with each edit, not larger.
 
+## Step 0: Discover & Run Dead-Code Tools
+
+Before manual review, let tools do the heavy lifting. Execute this sequence:
+
+1. **Detect stack** — Read project root for `go.mod`, `package.json`, `Cargo.toml`, `pyproject.toml`, etc. to identify languages in use.
+
+2. **Search for best tools** — For each detected language, web-search:
+   > "best dead code / unused export / unreachable function detection CLI tool for {language} {year}"
+
+   Look for tools that do **whole-program reachability analysis**, not just single-file linting. Examples of what you might find (do NOT hardcode — always search for current best):
+   - Go → `deadcode`, `staticcheck`
+   - JS/TS → `knip`, `ts-prune`
+   - Rust → `cargo-udeps`, compiler warnings
+   - Python → `vulture`, `ruff`
+
+3. **Install & run** — Install any missing tools, run them, capture output.
+
+4. **Act on findings** — Delete every confirmed-dead item. If a tool reports a false positive (e.g. reflection-based usage), skip it silently — do not suppress the warning.
+
+This step replaces manual `grep` for unused symbols. Only fall back to grep if no suitable tool exists for the stack.
+
 ## Rules
 
 1. **Delete over keep** — Dead code gets deleted outright. No commenting out, no `_unused` prefix, no re-export, no deprecation marker. Git remembers everything so you don't have to.

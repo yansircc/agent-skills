@@ -1,6 +1,5 @@
 {
   "name": "pawl-foreman",
-  "version": "1.0.0",
   "description": "AI agent foreman — orchestrate multi-step tasks using pawl",
   "author": {
     "name": "yansircc"

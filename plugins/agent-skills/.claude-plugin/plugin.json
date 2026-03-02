@@ -1,6 +1,5 @@
 {
   "name": "agent-skills",
-  "version": "1.0.0",
   "description": "Thinking, workflow, and tool reference skills for Claude Code",
   "author": {
     "name": "yansircc"

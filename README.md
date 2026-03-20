@@ -10,6 +10,7 @@ Reusable skills for [Claude Code](https://claude.com/claude-code) — thinking m
 
 # Install plugins
 /plugin install agent-skills@yansircc-skills
+/plugin install rtk@yansircc-skills             # optional, for Roundtable Kernel
 /plugin install pawl-foreman@yansircc-skills    # optional, for pawl orchestration
 ```
 
@@ -40,6 +41,15 @@ Usage:
 /agent-skills:debate Should we use a monorepo or polyrepo?
 /agent-skills:essence What is dependency injection?
 /agent-skills:rethink
+```
+
+### rtk
+
+Roundtable Kernel runtime skill with bundled CLI and UI. Published from `yansircc/roundtable-kernel`.
+
+Usage:
+```
+/rtk:rtk
 ```
 
 ### pawl-foreman

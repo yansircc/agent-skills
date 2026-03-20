@@ -265,12 +265,13 @@ pawl log <task> --step <N>   # step_finished event contains verify_output
 | Logs | `pawl log <task> --all` | Step-level diagnosis (verify_output) |
 | Agent logs | Read session log directly (path in agent reference) | Tool-level diagnosis (what agent did) |
 | Poll | `pawl list` | One-time status snapshot |
+| Ready | `pawl list --ready` | Pending tasks with deps met |
 
 Multi-task parallel orchestration:
 
 ```bash
-# Launch all tasks (deps enforced automatically)
-for task in $(pawl list | jq -r '.[].name'); do pawl start "$task" & done
+# Launch all ready tasks (pending + deps met)
+for task in $(pawl list --ready | jq -r '.[].name'); do pawl start "$task" & done
 
 # Wait for any to need attention, process one by one
 pawl wait task-a task-b --until waiting,completed,failed --any

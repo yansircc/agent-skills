@@ -1,0 +1,11 @@
+{
+  "name": "rtk",
+  "version": "0.1.0",
+  "description": "Roundtable Kernel runtime skill with bundled CLI and UI",
+  "author": {
+    "name": "yansircc"
+  },
+  "repository": "https://github.com/yansircc/roundtable-kernel",
+  "license": "MIT",
+  "keywords": ["rtk", "roundtable", "workflow", "debate", "cli"]
+}

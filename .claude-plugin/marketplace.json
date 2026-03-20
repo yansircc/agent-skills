@@ -26,6 +26,15 @@
       "author": {
         "name": "yansircc"
       }
+    },
+    {
+      "name": "rtk",
+      "source": "./plugins/rtk",
+      "description": "Roundtable Kernel runtime skill with bundled CLI and UI",
+      "version": "0.1.0",
+      "author": {
+        "name": "yansircc"
+      }
     }
   ]
 }

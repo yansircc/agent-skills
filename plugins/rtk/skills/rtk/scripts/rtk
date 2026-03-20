@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+os=$(uname -s | tr '[:upper:]' '[:lower:]')
+arch=$(uname -m)
+
+case "$arch" in
+  x86_64) arch=amd64 ;;
+  aarch64) arch=arm64 ;;
+esac
+
+bin="$script_dir/rtk-${os}-${arch}"
+if [[ ! -x "$bin" ]]; then
+  echo "missing bundled rtk binary: $bin" >&2
+  exit 1
+fi
+
+export ROUNDTABLE_UI_ROOT="${ROUNDTABLE_UI_ROOT:-$script_dir/../ui/dist}"
+exec "$bin" "$@"

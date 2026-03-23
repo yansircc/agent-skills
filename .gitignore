@@ -1,2 +1,4 @@
 plugins/agent-skills/skills/pawl-foreman
+plugins/agent-skills/skills/claude-delegate/ui/node_modules/
+plugins/agent-skills/skills/claude-delegate/**/__pycache__/
 .DS_Store

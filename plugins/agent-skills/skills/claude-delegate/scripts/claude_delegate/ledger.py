@@ -34,6 +34,7 @@ def append_ledger_entry(artifacts_root: str | Path, artifacts_dir: Path, request
         "job_path": str(artifacts_dir),
         "model": request["model"],
         "provider": request.get("provider"),
+        "runtime": request.get("runtime"),
         "session_id": request["session_id"],
         "task_type": request.get("task_type"),
         "workspace_id": ((request.get("workspace_identity") or {}).get("workspace_id")),
@@ -88,6 +89,7 @@ def summarize_job(job_path: str | Path) -> dict | None:
         "num_turns": delegate.get("num_turns"),
         "ok": delegate.get("ok"),
         "provider": request.get("provider"),
+        "runtime": request.get("runtime"),
         "session_id": request["session_id"],
         "summary": completion.get("summary") or delegate.get("result"),
         "started_at": job.get("started_at"),
@@ -106,6 +108,7 @@ def collect_summaries(
     *,
     limit: int | None,
     session_id: str | None,
+    runtime: str | None,
     provider: str | None,
     state: str | None,
 ) -> tuple[list[dict], dict[str, Path]]:
@@ -135,6 +138,8 @@ def collect_summaries(
             continue
         if session_id is not None and summary["session_id"] != session_id:
             continue
+        if runtime is not None and summary.get("runtime") != runtime:
+            continue
         if provider is not None and summary.get("provider") != provider:
             continue
         if state is not None and summary["state"] != state:
@@ -152,6 +157,7 @@ def list_ledger(
     *,
     limit: int,
     session_id: str | None,
+    runtime: str | None,
     provider: str | None,
     state: str | None,
 ) -> dict:
@@ -159,6 +165,7 @@ def list_ledger(
         artifacts_root,
         limit=limit,
         session_id=session_id,
+        runtime=runtime,
         provider=provider,
         state=state,
     )
@@ -175,6 +182,7 @@ def ledger_stats(
     artifacts_root: str | Path,
     *,
     session_id: str | None,
+    runtime: str | None,
     provider: str | None,
     state: str | None,
 ) -> dict:
@@ -182,6 +190,7 @@ def ledger_stats(
         artifacts_root,
         limit=None,
         session_id=session_id,
+        runtime=runtime,
         provider=provider,
         state=state,
     )
@@ -271,6 +280,7 @@ def list_sessions(
     session_id: str | None = None,
     cwd: str | None = None,
     workspace_id: str | None = None,
+    runtime: str | None = None,
     provider: str | None = None,
     state: str | None = None,
     assistant_role: str | None = None,
@@ -305,6 +315,7 @@ def list_sessions(
         artifacts_root,
         limit=None,
         session_id=None,
+        runtime=None,
         provider=None,
         state=None,
     )
@@ -328,6 +339,7 @@ def list_sessions(
                 "task_type": item.get("task_type"),
                 "model": item["model"],
                 "provider": item.get("provider"),
+                "runtime": item.get("runtime"),
                 "job_count": 0,
                 "first_created_at": item["created_at"],
                 "last_created_at": item["created_at"],
@@ -364,6 +376,8 @@ def list_sessions(
             continue
         if workspace_id is not None and sess.get("workspace_id") != workspace_id:
             continue
+        if runtime is not None and sess.get("runtime") != runtime:
+            continue
         if provider is not None and sess.get("provider") != provider:
             continue
         if state is not None and sess["last_state"] != state:
@@ -395,6 +409,7 @@ def find_routable_session(
     *,
     cwd: str,
     workspace_id: str | None,
+    runtime: str,
     assistant_role: str,
     task_type: str,
     provider: str | None,
@@ -406,6 +421,7 @@ def find_routable_session(
         session_id=None,
         cwd=cwd,
         workspace_id=workspace_id,
+        runtime=runtime,
         provider=provider,
         state=None,
         assistant_role=assistant_role,
@@ -414,7 +430,7 @@ def find_routable_session(
     items = [
         item
         for item in listing["items"]
-        if item.get("provider") == provider and item.get("model") == model
+        if item.get("runtime") == runtime and item.get("provider") == provider and item.get("model") == model
     ]
     matched_session = next((item for item in items if item.get("resumable")), None)
     active_session = next((item for item in items if item.get("active")), None)

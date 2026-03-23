@@ -23,6 +23,7 @@ def request_view(request: dict) -> dict:
         "max_budget_usd": ((request.get("task_packet") or {}).get("execution_policy") or {}).get("max_budget_usd"),
         "model": request["model"],
         "provider": request.get("provider"),
+        "runtime": request.get("runtime"),
         "resume_session_id": request["resume_session_id"],
         "routing": request.get("routing"),
         "session_id": request["session_id"],

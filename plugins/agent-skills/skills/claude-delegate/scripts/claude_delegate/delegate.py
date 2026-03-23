@@ -1,14 +1,25 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import signal
-import subprocess
-import threading
 from pathlib import Path
 from typing import Callable
 
+from claude_agent_sdk import (
+    AssistantMessage,
+    ResultMessage,
+    StreamEvent,
+    query,
+)
+
 from .common import artifact_paths, read_json, write_json, write_text
-from .transport import extract_tool_uses, parse_transport
+from .sdk_transport import (
+    build_sdk_options,
+    extract_tool_uses_from_messages,
+    message_to_event,
+    result_to_envelope_fields,
+)
 
 
 def base_envelope(paths: dict[str, Path], request: dict) -> dict:
@@ -19,6 +30,7 @@ def base_envelope(paths: dict[str, Path], request: dict) -> dict:
         "error_message": None,
         "exit_code": None,
         "session_id": request["session_id"],
+        "runtime": request.get("runtime"),
         "model": request["model"],
         "provider": request.get("provider"),
         "duration_ms": None,
@@ -67,62 +79,6 @@ def write_failure_envelope(
     return envelope
 
 
-def normalize_process_output(
-    request: dict,
-    process: subprocess.CompletedProcess[str],
-    artifacts_dir: Path,
-) -> dict:
-    paths = artifact_paths(artifacts_dir)
-    write_outputs(paths, process.stdout, process.stderr)
-
-    envelope = base_envelope(paths, request)
-    envelope["exit_code"] = process.returncode
-
-    final, events, parse_error = parse_transport(process.stdout)
-
-    if process.returncode != 0:
-        envelope["error_type"] = "process_error"
-        envelope["error_message"] = (process.stderr or process.stdout).strip() or "ccc exited non-zero"
-    elif parse_error is not None:
-        envelope["error_type"] = "transport_error"
-        envelope["error_message"] = parse_error
-    else:
-        assert final is not None
-        init = {}
-        if events is not None:
-            init = next(
-                (
-                    event
-                    for event in events
-                    if event.get("type") == "system" and event.get("subtype") == "init"
-                ),
-                {},
-            )
-        envelope["session_id"] = final.get("session_id") or init.get("session_id") or request["session_id"]
-        envelope["duration_ms"] = final.get("duration_ms")
-        envelope["model_usage"] = final.get("modelUsage") or final.get("model_usage")
-        envelope["num_turns"] = final.get("num_turns")
-        envelope["stop_reason"] = final.get("stop_reason")
-        envelope["total_cost_usd"] = final.get("total_cost_usd")
-        envelope["result"] = final.get("result")
-        envelope["structured_output"] = final.get("structured_output")
-        envelope["permission_denials"] = final.get("permission_denials", [])
-        envelope["tool_uses"] = extract_tool_uses(events) if events is not None else []
-        envelope["tool_use_count"] = len(envelope["tool_uses"])
-
-        if final.get("is_error"):
-            envelope["error_type"] = "delegate_error"
-            envelope["error_message"] = final.get("result") or "ccc reported is_error=true"
-        elif request["schema"] is not None and "structured_output" not in final:
-            envelope["error_type"] = "protocol_error"
-            envelope["error_message"] = "schema supplied but structured_output missing from final event"
-        else:
-            envelope["ok"] = True
-
-    write_json(paths["normalized"], envelope)
-    return envelope
-
-
 class DelegateRuntime:
     def __init__(
         self,
@@ -137,14 +93,13 @@ class DelegateRuntime:
         self.paths = artifact_paths(artifacts_dir)
         self.on_spawn = on_spawn
         self.on_event = on_event
-        self.process: subprocess.Popen[str] | None = None
         self.cancel_requested = False
         self.cancel_exit_code = 143
         self.cancel_reason = "job cancelled"
         self._previous_handlers: dict[int, signal.Handlers] = {}
-        self._stdout_lines: list[str] = []
-        self._stderr_lines: list[str] = []
         self._event_count = 0
+        self._collected_messages: list = []
+        self._stderr_lines: list[str] = []
 
     def execute(self) -> dict:
         self._install_signal_handlers()
@@ -159,125 +114,130 @@ class DelegateRuntime:
                     exit_code=self.cancel_exit_code,
                 )
 
-            self.process = subprocess.Popen(
-                self.request["command"],
-                cwd=((self.request.get("execution_workspace") or {}).get("execution_cwd") or self.request["cwd"]),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-            )
-            if self.on_spawn is not None:
-                self.on_spawn(self.process.pid)
-            if self.cancel_requested and self.process.poll() is None:
-                self.process.terminate()
-
-            self.paths["events"].write_text("")
-            self.paths["stdout"].write_text("")
-            self.paths["stderr"].write_text("")
-
-            stdout_thread = threading.Thread(
-                target=self._read_stdout_stream,
-                args=(self.process.stdout,),
-                daemon=True,
-            )
-            stderr_thread = threading.Thread(
-                target=self._read_stderr_stream,
-                args=(self.process.stderr,),
-                daemon=True,
-            )
-            stdout_thread.start()
-            stderr_thread.start()
-
-            timeout_seconds = self.request.get("timeout_seconds")
-            try:
-                if timeout_seconds is None:
-                    self.process.wait()
-                else:
-                    self.process.wait(timeout=timeout_seconds)
-            except subprocess.TimeoutExpired as exc:
-                self.process.kill()
-                self.process.wait()
-                stdout_thread.join()
-                stderr_thread.join()
-                stdout = "".join(self._stdout_lines)
-                stderr = "".join(self._stderr_lines)
-                write_outputs(self.paths, stdout or exc.stdout or "", stderr or exc.stderr or "")
-                return write_failure_envelope(
-                    self.request,
-                    self.artifacts_dir,
-                    "timeout_error",
-                    f"ccc timed out after {timeout_seconds} seconds",
-                    exit_code=124,
-                )
-
-            stdout_thread.join()
-            stderr_thread.join()
-            stdout = "".join(self._stdout_lines)
-            stderr = "".join(self._stderr_lines)
-            completed = subprocess.CompletedProcess(
-                self.request["command"],
-                self.process.returncode,
-                stdout,
-                stderr,
-            )
-
-            if self.cancel_requested:
-                write_outputs(self.paths, stdout, stderr)
-                return write_failure_envelope(
-                    self.request,
-                    self.artifacts_dir,
-                    "cancelled",
-                    self.cancel_reason,
-                    exit_code=self.cancel_exit_code,
-                )
-
-            return normalize_process_output(self.request, completed, self.artifacts_dir)
+            return asyncio.run(self._execute_async())
         finally:
             self._restore_signal_handlers()
+
+    async def _execute_async(self) -> dict:
+        options = build_sdk_options(self.request, stderr_callback=self._record_stderr)
+        prompt = self.request["prompt"]
+
+        # Initialise artifact files
+        self.paths["events"].write_text("")
+        self.paths["stdout"].write_text("")
+        self.paths["stderr"].write_text("")
+
+        result_msg: ResultMessage | None = None
+        cancel_event = asyncio.Event()
+
+        # Wire SIGTERM/SIGINT into the async cancellation path
+        loop = asyncio.get_running_loop()
+        for signum in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(signum, lambda s=signum: self._handle_cancel_async(s, cancel_event))
+
+        timeout_seconds = self.request.get("timeout_seconds")
+
+        try:
+            async with asyncio.timeout(timeout_seconds):
+                async for msg in query(prompt=prompt, options=options):
+                    if self.cancel_requested:
+                        break
+
+                    self._collected_messages.append(msg)
+                    event_dict = message_to_event(msg)
+                    if event_dict is not None:
+                        self._record_event(event_dict)
+
+                    if isinstance(msg, ResultMessage):
+                        result_msg = msg
+
+        except TimeoutError:
+            runtime_label = self.request.get("runtime") or "delegate runtime"
+            return write_failure_envelope(
+                self.request,
+                self.artifacts_dir,
+                "timeout_error",
+                f"{runtime_label} timed out after {timeout_seconds} seconds",
+                exit_code=124,
+            )
+        except Exception as exc:
+            return write_failure_envelope(
+                self.request,
+                self.artifacts_dir,
+                "sdk_error",
+                str(exc),
+                exit_code=1,
+            )
+        finally:
+            # Restore signal handlers (remove async handlers)
+            for signum in (signal.SIGTERM, signal.SIGINT):
+                loop.remove_signal_handler(signum)
+
+        if self.cancel_requested:
+            return write_failure_envelope(
+                self.request,
+                self.artifacts_dir,
+                "cancelled",
+                self.cancel_reason,
+                exit_code=self.cancel_exit_code,
+            )
+
+        return self._build_envelope(result_msg)
+
+    def _build_envelope(self, result_msg: ResultMessage | None) -> dict:
+        envelope = base_envelope(self.paths, self.request)
+        tool_uses = extract_tool_uses_from_messages(self._collected_messages)
+
+        if result_msg is None:
+            envelope["error_type"] = "protocol_error"
+            envelope["error_message"] = "SDK stream ended without a ResultMessage"
+        else:
+            result_fields = result_to_envelope_fields(result_msg)
+            envelope.update(result_fields)
+
+            if (
+                envelope["ok"]
+                and self.request.get("schema") is not None
+                and result_msg.structured_output is None
+            ):
+                envelope["ok"] = False
+                envelope["error_type"] = "protocol_error"
+                envelope["error_message"] = "schema supplied but structured_output missing from result"
+
+        envelope["tool_uses"] = tool_uses
+        envelope["tool_use_count"] = len(tool_uses)
+        write_json(self.paths["normalized"], envelope)
+        return envelope
+
+    def _record_event(self, event_dict: dict) -> None:
+        line = json.dumps(event_dict, separators=(",", ":")) + "\n"
+        with self.paths["events"].open("a") as f:
+            f.write(line)
+            f.flush()
+        with self.paths["stdout"].open("a") as f:
+            f.write(line)
+            f.flush()
+        self._event_count += 1
+        if self.on_event is not None:
+            self.on_event(event_dict, self._event_count)
+
+    def _record_stderr(self, line: str) -> None:
+        normalized = line if line.endswith("\n") else f"{line}\n"
+        self._stderr_lines.append(normalized)
+        with self.paths["stderr"].open("a") as f:
+            f.write(normalized)
+            f.flush()
+
+    def _handle_cancel_async(self, signum: int, cancel_event: asyncio.Event) -> None:
+        self.cancel_requested = True
+        self.cancel_exit_code = 128 + signum
+        self.cancel_reason = f"job cancelled by signal {signum}"
+        cancel_event.set()
 
     def _install_signal_handlers(self) -> None:
         for signum in (signal.SIGTERM, signal.SIGINT):
             self._previous_handlers[signum] = signal.getsignal(signum)
-            signal.signal(signum, self._handle_cancel_signal)
 
     def _restore_signal_handlers(self) -> None:
         for signum, handler in self._previous_handlers.items():
             signal.signal(signum, handler)
-
-    def _handle_cancel_signal(self, signum: int, _frame: object) -> None:
-        self.cancel_requested = True
-        self.cancel_exit_code = 128 + signum
-        self.cancel_reason = f"job cancelled by signal {signum}"
-        if self.process is not None and self.process.poll() is None:
-            self.process.terminate()
-
-    def _read_stdout_stream(self, stream: object) -> None:
-        assert stream is not None
-        with self.paths["events"].open("a") as events_handle, self.paths["stdout"].open("a") as stdout_handle:
-            for line in iter(stream.readline, ""):
-                self._stdout_lines.append(line)
-                events_handle.write(line)
-                events_handle.flush()
-                stdout_handle.write(line)
-                stdout_handle.flush()
-                stripped = line.strip()
-                if not stripped:
-                    continue
-                try:
-                    payload = json.loads(stripped)
-                except json.JSONDecodeError:
-                    continue
-                if not isinstance(payload, dict):
-                    continue
-                self._event_count += 1
-                if self.on_event is not None:
-                    self.on_event(payload, self._event_count)
-
-    def _read_stderr_stream(self, stream: object) -> None:
-        assert stream is not None
-        with self.paths["stderr"].open("a") as stderr_handle:
-            for line in iter(stream.readline, ""):
-                self._stderr_lines.append(line)
-                stderr_handle.write(line)
-                stderr_handle.flush()

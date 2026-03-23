@@ -11,13 +11,12 @@ from claude_delegate.common import artifact_paths, build_artifacts_dir, print_js
 from claude_delegate.contracts import ROLE_SYSTEM_INSTRUCTIONS
 from claude_delegate.jobs import cancel_job, initialize_job, pause_job, render_job_view, run_worker, submit_request, wait_for_job, wait_for_jobs_all, wait_for_jobs_any
 from claude_delegate.ledger import append_ledger_entry, ledger_stats, list_ledger, list_sessions, prune_terminal_jobs
-from claude_delegate.request import build_command_from_request, build_request
-from claude_delegate.settings_hooks import materialize_settings
+from claude_delegate.request import build_request
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run local Claude Code CLI through a stable JSON envelope."
+        description="Run a local Claude-compatible CLI runtime through a stable JSON envelope."
     )
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument("--submit", action="store_true")
@@ -33,7 +32,10 @@ def parse_args() -> argparse.Namespace:
     mode_group.add_argument("--prune-terminal-older-than-hours", type=float)
     mode_group.add_argument("--compact-terminal-older-than-hours", type=float)
     mode_group.add_argument("--job-worker", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--ccc-bin", default=os.environ.get("CCC_BIN"))
+    parser.add_argument("--runtime", default=os.environ.get("CLAUDE_DELEGATE_RUNTIME"))
+    parser.add_argument("--runtime-bin", default=os.environ.get("CLAUDE_DELEGATE_RUNTIME_BIN"))
+    parser.add_argument("--runtime-config", default=os.environ.get("CLAUDE_DELEGATE_RUNTIME_CONFIG"))
+    parser.add_argument("--ccc-bin", default=os.environ.get("CCC_BIN"), help=argparse.SUPPRESS)
     parser.add_argument("--cwd")
     parser.add_argument("--provider")
     parser.add_argument("--model")
@@ -66,11 +68,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--startup-fd", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--ledger-limit", type=int, default=20)
     parser.add_argument("--ledger-session-id")
+    parser.add_argument("--ledger-runtime")
     parser.add_argument("--ledger-provider")
     parser.add_argument("--ledger-state")
     parser.add_argument("--list-sessions-limit", type=int)
     parser.add_argument("--list-sessions-cwd")
     parser.add_argument("--list-sessions-provider")
+    parser.add_argument("--list-sessions-runtime")
     parser.add_argument("--list-sessions-state")
     parser.add_argument("--list-sessions-role")
     parser.add_argument("--list-sessions-task-type")
@@ -152,6 +156,7 @@ def main() -> int:
                 args.artifacts_root,
                 limit=args.ledger_limit,
                 session_id=args.ledger_session_id,
+                runtime=args.ledger_runtime,
                 provider=args.ledger_provider,
                 state=args.ledger_state,
             )
@@ -162,6 +167,7 @@ def main() -> int:
             payload = ledger_stats(
                 args.artifacts_root,
                 session_id=args.ledger_session_id,
+                runtime=args.ledger_runtime,
                 provider=args.ledger_provider,
                 state=args.ledger_state,
             )
@@ -174,6 +180,7 @@ def main() -> int:
                 limit=args.list_sessions_limit,
                 session_id=args.ledger_session_id,
                 cwd=args.list_sessions_cwd,
+                runtime=args.list_sessions_runtime,
                 provider=args.list_sessions_provider,
                 state=args.list_sessions_state,
                 assistant_role=args.list_sessions_role,
@@ -200,8 +207,6 @@ def main() -> int:
 
         artifacts_dir = build_artifacts_dir(args.artifacts_root)
         request = build_request(args)
-        request = materialize_settings(request, artifacts_dir)
-        request["command"] = build_command_from_request(request)
         write_json((artifacts_dir / "request.json"), request)
         ledger_path = append_ledger_entry(args.artifacts_root, artifacts_dir, request)
         initialize_job(artifact_paths(artifacts_dir), request, ledger_path=str(ledger_path))

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 import uuid
 from copy import deepcopy
@@ -20,6 +19,7 @@ from .contracts import (
     split_csv,
 )
 from .ledger import find_routable_session
+from .runtime_profiles import resolve_runtime_request
 from .workspace_identity import build_workspace_identity
 
 
@@ -72,6 +72,7 @@ def _resolve_session_routing(request: dict, artifacts_root: str) -> dict:
             artifacts_root,
             cwd=request["cwd"],
             workspace_id=((request.get("workspace_identity") or {}).get("workspace_id")),
+            runtime=request["runtime"],
             assistant_role=request["assistant_role"],
             task_type=request["task_type"],
             provider=request.get("provider"),
@@ -89,7 +90,7 @@ def _resolve_session_routing(request: dict, artifacts_root: str) -> dict:
                 "matched_job_path": matched.get("last_job_path"),
                 "candidate_count": routing_candidate["candidate_count"],
                 "session_health": matched_health,
-                "reason": "Matched the latest resumable session by workspace boundary, assistant_role, task_type, provider, and model.",
+                "reason": "Matched the latest resumable session by workspace boundary, runtime, assistant_role, task_type, provider, and model.",
             }
             return request
 
@@ -147,50 +148,6 @@ def resolve_session_fields(session_id: str | None, resume_session_id: str | None
     return str(uuid.uuid4()), None
 
 
-def build_command_from_request(request: dict) -> list[str]:
-    command = [request.get("ccc_bin", "ccc"), "-p"]
-    execution_policy = (request.get("task_packet") or {}).get("execution_policy") or {}
-    max_budget_usd = execution_policy.get("max_budget_usd")
-
-    if request.get("resume_session_id"):
-        command.extend(["-r", request["session_id"]])
-    else:
-        command.extend(["--session-id", request["session_id"]])
-
-    schema = request.get("schema")
-    schema_text = json.dumps(schema) if schema is not None else None
-
-    command.extend(
-        [
-            "--system-prompt",
-            request["system_prompt"],
-            "--setting-sources",
-            "",
-            "--permission-mode",
-            "bypassPermissions",
-            "--output-format",
-            "stream-json",
-            "--verbose",
-        ]
-    )
-
-    if request.get("tools") is not None:
-        command.extend(["--tools", request["tools"]])
-
-    if request.get("provider"):
-        command.extend(["--provider", request["provider"]])
-    if request.get("model"):
-        command.extend(["--model", request["model"]])
-
-    if isinstance(max_budget_usd, (int, float)):
-        command.extend(["--max-budget-usd", str(max_budget_usd)])
-    if request.get("settings"):
-        command.extend(["--settings", request["settings"]])
-    if schema_text is not None:
-        command.extend(["--json-schema", schema_text])
-
-    command.append(request["prompt"])
-    return command
 
 
 def _validate_role(role: str) -> str:
@@ -224,8 +181,14 @@ def _apply_cli_overrides(
 ) -> dict:
     updated = deepcopy(request)
 
+    if getattr(args, "runtime", None) is not None:
+        updated["runtime"] = args.runtime
+    if getattr(args, "runtime_bin", None) is not None:
+        updated["runtime_bin"] = args.runtime_bin
+    if getattr(args, "runtime_config", None) is not None:
+        updated["runtime_config"] = args.runtime_config
     if args.ccc_bin is not None:
-        updated["ccc_bin"] = args.ccc_bin
+        updated["runtime_bin"] = args.ccc_bin
     if args.cwd is not None:
         updated["cwd"] = args.cwd
     if args.provider is not None:
@@ -270,7 +233,6 @@ def _apply_cli_overrides(
 def finalize_request(request: dict) -> dict:
     resolved = deepcopy(request)
     resolved["created_at"] = utc_now()
-    resolved["ccc_bin"] = resolved.get("ccc_bin") or "ccc"
     resolved["cwd"] = str(Path(resolved.get("cwd") or Path.cwd()).resolve())
     raw_provider = resolved.get("provider")
     if raw_provider is None:
@@ -344,6 +306,9 @@ def finalize_request(request: dict) -> dict:
         cwd=resolved["cwd"],
         execution_policy=task_packet.get("execution_policy"),
     )
+    resolved["runtime_resolution"] = resolve_runtime_request(resolved)
+    resolved["runtime"] = resolved["runtime_resolution"]["name"]
+    resolved["runtime_bin"] = resolved["runtime_resolution"]["bin"]
 
     resolved["session_routing"] = resolved.get("session_routing") or "new"
     resolved = _resolve_session_routing(
@@ -376,8 +341,6 @@ def finalize_request(request: dict) -> dict:
     finalized = {
         "assistant_role": assistant_role,
         "base_system_prompt": base_system_prompt,
-        "ccc_bin": resolved["ccc_bin"],
-        "command": [],
         "completion_contract": completion_contract,
         "created_at": resolved["created_at"],
         "cwd": resolved["cwd"],
@@ -388,6 +351,10 @@ def finalize_request(request: dict) -> dict:
         "prompt": prompt,
         "resume_session_id": resume_session_id,
         "routing": resolved.get("routing"),
+        "runtime": resolved["runtime"],
+        "runtime_bin": resolved["runtime_bin"],
+        "runtime_config": resolved.get("runtime_config"),
+        "runtime_resolution": resolved["runtime_resolution"],
         "schema": completion_contract["schema"],
         "session_id": session_id,
         "session_routing": resolved.get("session_routing"),
@@ -401,7 +368,6 @@ def finalize_request(request: dict) -> dict:
         "workflow_roles": workflow_roles,
         "workspace_identity": resolved["workspace_identity"],
     }
-    finalized["command"] = build_command_from_request(finalized)
     return finalized
 
 
@@ -446,7 +412,6 @@ def build_request(args: argparse.Namespace) -> dict:
         "assistant_role": args.assistant_role,
         "artifacts_root": args.artifacts_root,
         "base_system_prompt": args.system_prompt,
-        "ccc_bin": args.ccc_bin,
         "completion_contract": raw_completion_contract,
         "cwd": args.cwd,
         "delta_prompt": delta_prompt,
@@ -454,6 +419,9 @@ def build_request(args: argparse.Namespace) -> dict:
         "lineage": None,
         "max_budget_usd": args.max_budget_usd,
         "model": args.model,
+        "runtime": getattr(args, "runtime", None),
+        "runtime_bin": getattr(args, "runtime_bin", None) or args.ccc_bin,
+        "runtime_config": getattr(args, "runtime_config", None),
         "provider": args.provider,
         "resume_session_id": args.resume_session_id,
         "session_routing": args.session_routing,

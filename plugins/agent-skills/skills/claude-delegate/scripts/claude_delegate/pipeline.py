@@ -8,7 +8,6 @@ from .contracts import build_delegate_prompt
 from .delegate import DelegateRuntime
 from .execution_workspace import build_execution_task_packet, prepare_execution_workspace
 from .patch_artifact import generate_patch, write_patch_artifact
-from .request import build_command_from_request
 from .transport import summarize_tool_uses
 from .verifier import evaluate_execution_policy, normalize_completion_fields, run_verification
 from .workspace import capture_workspace_state, diff_workspace_state
@@ -46,7 +45,6 @@ def _request_for_execution(request: dict, workspace) -> dict:
         delta_prompt=request.get("delta_prompt") or ((request.get("lineage") or {}).get("delta_prompt")),
         parent_handoff=_load_parent_handoff(request),
     )
-    updated["command"] = build_command_from_request(updated)
     return updated
 
 

@@ -111,6 +111,7 @@ class ProgressUiApp:
             self.artifacts_root,
             limit=limit,
             session_id=None,
+            runtime=None,
             provider=None,
             state=None,
         )
@@ -118,6 +119,7 @@ class ProgressUiApp:
             self.artifacts_root,
             limit=limit,
             session_id=None,
+            runtime=None,
             provider=None,
             state="running",
         )

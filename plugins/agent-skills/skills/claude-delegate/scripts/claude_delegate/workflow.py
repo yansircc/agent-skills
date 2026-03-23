@@ -10,7 +10,7 @@ from .contracts import build_delegate_prompt, build_system_prompt, default_compl
 from .delegate import base_envelope, write_failure_envelope
 from .job_state import finalize_job_state, initialize_job, update_job
 from .pipeline import execute_request_pipeline
-from .request import build_command_from_request, finalize_request
+from .request import finalize_request
 
 
 def _step_summary(envelope: dict, role: str, job_path: str) -> dict:
@@ -134,7 +134,6 @@ def _prepare_role_request(parent_request: dict, role: str, prior_steps: list[dic
         delta_prompt=child_request.get("delta_prompt"),
         prior_steps=prior_steps,
     )
-    child_request["command"] = build_command_from_request(child_request)
     return child_request
 
 

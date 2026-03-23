@@ -1,25 +1,11 @@
+"""Transport utilities for stream-json events.
+
+``parse_transport`` and ``extract_tool_uses`` have been superseded by
+the SDK adapter in ``sdk_transport.py``.  This module retains only
+``summarize_tool_uses`` which is used by the pipeline to compact
+tool-use records in the normalised envelope.
+"""
 from __future__ import annotations
-
-import json
-
-
-def extract_tool_uses(events: list[dict]) -> list[dict]:
-    tool_uses: list[dict] = []
-    for event in events:
-        message = event.get("message")
-        if not isinstance(message, dict):
-            continue
-        for item in message.get("content", []):
-            if item.get("type") != "tool_use":
-                continue
-            tool_uses.append(
-                {
-                    "id": item.get("id"),
-                    "name": item.get("name"),
-                    "input": item.get("input"),
-                }
-            )
-    return tool_uses
 
 
 def _truncate_text(value: str, *, limit: int = 160) -> tuple[str, bool]:
@@ -79,24 +65,3 @@ def summarize_tool_uses(tool_uses: list[dict]) -> list[dict]:
             summary["input"] = _summarize_input_field("value", tool_input)
         summarized.append(summary)
     return summarized
-
-
-def parse_transport(stdout: str) -> tuple[dict | None, list[dict] | None, str | None]:
-    lines = [line for line in stdout.splitlines() if line.strip()]
-    if not lines:
-        return None, None, "protocol_error: expected non-empty stream-json output from ccc"
-
-    events: list[dict] = []
-    for index, line in enumerate(lines, start=1):
-        try:
-            payload = json.loads(line)
-        except json.JSONDecodeError as exc:
-            return None, None, f"transport_error: invalid JSON line {index} from ccc: {exc}"
-        if not isinstance(payload, dict):
-            return None, None, f"protocol_error: expected JSON object on line {index} from ccc"
-        events.append(payload)
-
-    final = next((event for event in reversed(events) if event.get("type") == "result"), None)
-    if final is None:
-        return None, events, "protocol_error: stream-json output missing final result event"
-    return final, events, None

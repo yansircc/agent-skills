@@ -90,6 +90,13 @@ def _scrub_conflicting_settings(settings: dict, request: dict) -> dict:
 
 def materialize_settings(request: dict, artifacts_dir: str | Path) -> dict:
     updated = deepcopy(request)
+    runtime_resolution = updated.get("runtime_resolution") or {}
+    runtime_name = runtime_resolution.get("name") or updated.get("runtime") or "runtime"
+    if not runtime_resolution.get("supports_settings", True):
+        raise ValueError(
+            f"Runtime '{runtime_name}' does not support job-local settings injection; "
+            "this adapter currently requires a Claude-compatible settings surface."
+        )
     settings_value = updated.get("settings")
     settings = _minimal_settings() if settings_value is None else _load_settings_value(settings_value)
     settings = _scrub_conflicting_settings(settings, updated)

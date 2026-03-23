@@ -117,6 +117,8 @@ def compact_terminal_jobs(
         artifacts_root,
         limit=None,
         session_id=None,
+        runtime=None,
+        provider=None,
         state=None,
     )
 

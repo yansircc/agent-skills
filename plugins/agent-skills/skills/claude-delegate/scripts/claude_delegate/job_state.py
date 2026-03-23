@@ -30,6 +30,7 @@ def build_job_record(paths: dict[str, Path], request: dict) -> dict:
         "pid": None,
         "request_path": str(paths["request"]),
         "routing": request.get("routing"),
+        "runtime": request.get("runtime"),
         "started_at": None,
         "state": "submitted",
         "step_job_paths": [],

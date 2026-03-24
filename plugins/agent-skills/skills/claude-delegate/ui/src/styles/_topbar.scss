@@ -1,0 +1,42 @@
+.topbar {
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-main {
+  display: grid;
+  gap: 2px;
+}
+
+.topbar-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.refresh:hover {
+  background: var(--hover);
+}
+
+.overview-context {
+  padding: 0;
+}

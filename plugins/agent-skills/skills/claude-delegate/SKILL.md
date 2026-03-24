@@ -87,7 +87,7 @@ Then run with `--provider official` and set env at runtime:
 ```bash
 export CLAUDE_DIRECT_BASE_URL='https://...'
 export CLAUDE_DIRECT_AUTH_TOKEN='...'
-python3 /Users/yansir/.codex/skills/claude-delegate/scripts/run_claude_delegate.py \
+npx tsx /Users/yansir/.codex/skills/claude-delegate/src/cli/index.ts \
   --runtime claude \
   --provider official \
   --cwd /abs/path \
@@ -118,7 +118,7 @@ If `job.json` or `normalized.json` already answers the question, do not infer st
 Run one bounded task:
 
 ```bash
-python3 /Users/yansir/.codex/skills/claude-delegate/scripts/run_claude_delegate.py \
+npx tsx /Users/yansir/.codex/skills/claude-delegate/src/cli/index.ts \
   --cwd /abs/path \
   --assistant-role explorer \
   --prompt 'Inspect the repo and return a short JSON summary.'
@@ -127,7 +127,7 @@ python3 /Users/yansir/.codex/skills/claude-delegate/scripts/run_claude_delegate.
 Run asynchronously, then wait without busy polling:
 
 ```bash
-python3 /Users/yansir/.codex/skills/claude-delegate/scripts/run_claude_delegate.py \
+npx tsx /Users/yansir/.codex/skills/claude-delegate/src/cli/index.ts \
   --submit \
   --cwd /abs/path \
   --assistant-role implementer \
@@ -135,7 +135,7 @@ python3 /Users/yansir/.codex/skills/claude-delegate/scripts/run_claude_delegate.
 ```
 
 ```bash
-python3 /Users/yansir/.codex/skills/claude-delegate/scripts/run_claude_delegate.py \
+npx tsx /Users/yansir/.codex/skills/claude-delegate/src/cli/index.ts \
   --wait \
   --job-path /tmp/claude-delegate-runs/.../<job-id>
 ```
@@ -143,7 +143,7 @@ python3 /Users/yansir/.codex/skills/claude-delegate/scripts/run_claude_delegate.
 Wait on multiple jobs:
 
 ```bash
-python3 /Users/yansir/.codex/skills/claude-delegate/scripts/run_claude_delegate.py \
+npx tsx /Users/yansir/.codex/skills/claude-delegate/src/cli/index.ts \
   --wait-any \
   --job-path /tmp/claude-delegate-runs/.../<job-a> \
   --job-path /tmp/claude-delegate-runs/.../<job-b>
@@ -152,7 +152,7 @@ python3 /Users/yansir/.codex/skills/claude-delegate/scripts/run_claude_delegate.
 Pick a runtime or provider explicitly when needed:
 
 ```bash
-python3 /Users/yansir/.codex/skills/claude-delegate/scripts/run_claude_delegate.py \
+npx tsx /Users/yansir/.codex/skills/claude-delegate/src/cli/index.ts \
   --cwd /abs/path \
   --runtime ccc \
   --provider minimax \
@@ -163,7 +163,7 @@ python3 /Users/yansir/.codex/skills/claude-delegate/scripts/run_claude_delegate.
 Resume, fork, or retry from a prior job:
 
 ```bash
-python3 /Users/yansir/.codex/skills/claude-delegate/scripts/run_claude_delegate.py \
+npx tsx /Users/yansir/.codex/skills/claude-delegate/src/cli/index.ts \
   --resume-job /tmp/claude-delegate-runs/.../<job-id> \
   --delta-prompt 'Continue and finish.'
 ```

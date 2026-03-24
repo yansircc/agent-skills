@@ -1,0 +1,44 @@
+.shell {
+  display: grid;
+  grid-template-columns: 336px minmax(0, 1fr);
+  gap: 16px;
+  max-width: 1280px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 12px 16px;
+}
+
+.sidebar,
+.main {
+  min-height: 0;
+}
+
+.sidebar {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.main {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.35fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.main-column {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  min-width: 0;
+}
+
+.transcript-panel {
+  min-height: 0;
+}

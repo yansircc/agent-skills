@@ -1,0 +1,35 @@
+$mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+
+:root {
+  --ink: #222222;
+  --muted: #888888;
+  --link: #0000cc;
+  --base: #ffffff;
+  --surface: #f4f4f4;
+  --hover: #f8f8f0;
+  --border: #cccccc;
+  --border-strong: #999999;
+  --success: #006600;
+  --warning: #bb6600;
+  --error: #cc0000;
+  --selection: #efefe8;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8e8e8;
+    --muted: #a0a0a0;
+    --link: #8fa8ff;
+    --base: #111111;
+    --surface: #1a1a1a;
+    --hover: #171712;
+    --border: #444444;
+    --border-strong: #777777;
+    --success: #6abf69;
+    --warning: #d9a35f;
+    --error: #ff7d7d;
+    --selection: #202018;
+    color-scheme: dark;
+  }
+}

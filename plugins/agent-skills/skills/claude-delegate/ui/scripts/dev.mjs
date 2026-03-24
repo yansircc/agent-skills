@@ -9,7 +9,7 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const uiRoot = path.resolve(scriptDir, "..");
 const skillRoot = path.resolve(uiRoot, "..");
 const viteBin = path.resolve(uiRoot, "node_modules", "vite", "bin", "vite.js");
-const backendEntry = path.resolve(skillRoot, "scripts", "run_claude_delegate_ui.py");
+const backendEntry = path.resolve(skillRoot, "src", "server", "index.ts");
 
 const rawArgs = process.argv.slice(2).filter((arg) => arg !== "--");
 const vitePort = readOption(rawArgs, ["--port", "-p"], String(DEFAULT_VITE_PORT));
@@ -18,8 +18,9 @@ const artifactsRoot = readOption(rawArgs, ["--artifacts-root"], "/tmp/claude-del
 const viteArgs = stripOptions(rawArgs, ["--api-port", "--artifacts-root"]);
 
 const backend = spawn(
-  process.env.PYTHON || "python3",
+  process.execPath,
   [
+    "--import", "tsx/esm",
     backendEntry,
     "--api-only",
     "--host",

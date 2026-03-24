@@ -1,0 +1,54 @@
+.stream {
+  display: grid;
+  gap: 0;
+  max-height: 52vh;
+  overflow: auto;
+}
+
+.compact-stream {
+  max-height: 28vh;
+}
+
+.timeline {
+  max-height: 56vh;
+}
+
+.timeline-line {
+  display: grid;
+  gap: 4px;
+}
+
+.timeline-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.timeline-lane {
+  text-transform: lowercase;
+}
+
+.timeline-title {
+  color: var(--ink);
+}
+
+.timeline-detail {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.timeline-line.warning .timeline-title,
+.timeline-line.warning .timeline-detail {
+  color: var(--warning);
+}
+
+.timeline-line.error .timeline-title,
+.timeline-line.error .timeline-detail {
+  color: var(--error);
+}
+
+.timeline-line.success .timeline-title,
+.timeline-line.success .timeline-detail {
+  color: var(--success);
+}

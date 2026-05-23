@@ -79,8 +79,12 @@ export function validateManifestShape(raw) {
   }
   validatePathOwners(raw.allowedAdapters ?? [], "allowedAdapters", errors, true)
   validatePathOwners(raw.executableEdges ?? [], "executableEdges", errors, false)
+  validatePathOwners(raw.aiProviderTransports ?? [], "aiProviderTransports", errors, false)
   validateHostTooling(raw.hostTooling ?? [], errors)
   validateGenerated(raw.generatedPaths ?? [], errors)
+  if (raw.wranglerPath !== undefined && (typeof raw.wranglerPath !== "string" || raw.wranglerPath.trim() === "")) {
+    errors.push("wranglerPath must be a non-empty string")
+  }
   return errors
 }
 
@@ -145,8 +149,10 @@ function normalizeManifest(root, raw, manifestPath) {
     packages,
     executableEdges: normalizePathItems(raw.executableEdges ?? []),
     allowedAdapters: normalizePathItems(raw.allowedAdapters ?? []),
+    aiProviderTransports: normalizePathItems(raw.aiProviderTransports ?? []),
     generatedPaths: raw.generatedPaths ?? [],
     hostTooling: raw.hostTooling ?? [],
+    wranglerPath: raw.wranglerPath ? toPosix(raw.wranglerPath) : null,
     testGlobs: raw.testGlobs ?? ["**/*.test.ts", "**/*.spec.ts", "**/*.test.tsx", "**/*.spec.tsx"],
     suppression: raw.suppression ?? {
       lineLevel: { requireReason: true, requireOwner: false, allowExpires: true },

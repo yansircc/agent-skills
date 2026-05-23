@@ -226,7 +226,7 @@ it.effect("summarize works", () =>
 
 ## 11. 禁忌
 
-- 严禁直接 `import OpenAI from "openai"` / `import Anthropic from "@anthropic-ai/sdk"` 在业务代码里调用 — 用 `@effect/ai-*`。
+- 严禁直接 `import OpenAI from "openai"` / `import Anthropic from "@anthropic-ai/sdk"` 在业务代码里调用 — 默认用 `@effect/ai-*` provider；若平台暂缺 provider 包，必须在 `.effect-skill.json` 用 `aiProviderTransports[]` 声明 repo-owned terminal transport，且 agent loop / tool semantics 仍由 `@effect/ai` 拥有。
 - 严禁把 API key 写死或直接读 `process.env` — 用 `Config.redacted`。
 - 严禁裸调 LLM 不加 `Effect.timeout` + `Effect.retry` + `Effect.withSpan`。
 - 严禁忽略 `AiError` 错误通道 — 用 `catchTag` 处理 RateLimitError / ContextLengthExceeded 等具体子标签。

@@ -44,7 +44,11 @@ compatibility guess.
    is missing, the installed scanner is stale; run `make install` and `make verify`.
    If `profile.effectVersionsResolution` is `unresolved`, fix `package.json` or
    the manifest before continuing.
-7. Before delivery, run the verification gates listed below.
+7. If the same friction class lands in project evidence twice, graduate it into
+   a skill artifact instead of leaving another project-only note.
+8. Each new spike must name its own invariant; do not reuse an existing
+   reference theme unless the generator is actually shared.
+9. Before delivery, run the verification gates listed below.
 
 ## Reference Routing
 
@@ -61,7 +65,8 @@ Existing deep references remain available for API details:
 `references/effect-ai.md`, `references/effect-atom.md`,
 `references/effect-form.md`, `references/observability.md`,
 `references/errors-and-layers.md`, `references/testing.md`,
-`references/workflow.md`, `references/v4-migration.md`.
+`references/runtime-boundaries.md`, `references/workflow.md`,
+`references/v4-migration.md`.
 
 CST store migration for old task graphs: `references/cst-migration.md`.
 

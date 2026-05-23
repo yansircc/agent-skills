@@ -42,7 +42,10 @@
     "atomic-signals",
     "signal-token-view",
     "signals-no-semantic-verdicts",
-    "workflow-shape"
+    "runtime-facts-schema",
+    "cloudflare-runtime-facts",
+    "workflow-shape",
+    "worker-shape-ambiguity"
   ],
   "requiredRuleCoverage": [
     "EFF000",
@@ -71,7 +74,9 @@
     "EFF503",
     "EFF900",
     "EFF902",
-    "EFF903"
+    "EFF903",
+    "EFF905",
+    "EFF906"
   ],
   "antiCheatCases": [
     "missing-manifest-strict",
@@ -79,11 +84,15 @@
     "tools-core-ban-bypass",
     "node-tool-package-bypass",
     "workspace-root-leak",
+    "ai-missing-provider-or-transport-red",
     "line-rule-comment-literal-green",
     "signal-comment-literal-green",
     "profile-exit-failing",
     "profile-required-references",
     "profile-version-unresolved-fast-fail",
+    "cf-wrangler-scanner-overreach-red",
+    "cf-wrangler-toml-unsupported-red",
+    "worker-shape-without-wrangler-red",
     "lsp-floating-probe",
     "marker-only-lsp-bypass",
     "generated-adjacent-not-exempt"
@@ -293,11 +302,57 @@
       "strict": true,
       "files": {
         ".effect-skill.json": "{\"packages\":[{\"path\":\"apps/web\",\"shape\":[\"ai\"],\"dependencyOwner\":\"workspace-root\",\"dependencyOwnerReason\":\"workspace deps\"}]}",
-        "package.json": "{\"dependencies\":{\"@effect/ai-openai\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "package.json": "{\"dependencies\":{\"@effect/ai\":\"1.0.0\",\"@effect/ai-openai\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
         "apps/web/src/a.ts": "export const x = 1\n"
       },
       "expectExit": 0,
       "expectRules": []
+    },
+    {
+      "name": "ai-owned-transport-green",
+      "suites": ["package-presence", "profile-output", "profile-required-references", "atomic-signals", "red-green-fixtures"],
+      "strict": true,
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"ai\"],\"aiProviderTransports\":[{\"path\":\"src/provider-transport.ts\",\"owner\":\"@ai-transport\",\"reason\":\"terminal provider HTTP transport\"}]}",
+        "package.json": "{\"dependencies\":{\"@effect/ai\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/provider-transport.ts": "export const transport = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["ai-runtime-facts", "observability-wiring-facts"],
+      "expectRequiredReferences": ["references/effect-ai.md"],
+      "expectSignalFacts": [
+        {
+          "kind": "ai-runtime-facts",
+          "facts": {
+            "hasEffectAiDependency": true,
+            "effectAiProviderPackages": [],
+            "directProviderSdkDependencies": []
+          }
+        }
+      ],
+      "expectSignalFactPaths": [
+        {
+          "kind": "ai-runtime-facts",
+          "paths": {
+            "facts.declaredProviderTransports.0.path": "src/provider-transport.ts",
+            "facts.declaredProviderTransports.0.owner": "@ai-transport"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ai-missing-provider-or-transport-red",
+      "suites": ["package-presence", "evil-fixtures", "cheapest-plausible-lies"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"ai\"]}",
+        "package.json": "{\"dependencies\":{\"@effect/ai\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF312"]
     },
     {
       "name": "workspace-root-leak",
@@ -305,7 +360,7 @@
       "strict": true,
       "files": {
         ".effect-skill.json": "{\"packages\":[{\"path\":\"apps/web\",\"shape\":[\"ai\"]}]}",
-        "package.json": "{\"dependencies\":{\"@effect/ai-openai\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "package.json": "{\"dependencies\":{\"@effect/ai\":\"1.0.0\",\"@effect/ai-openai\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
         "apps/web/package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
         "apps/web/src/a.ts": "export const x = 1\n"
       },
@@ -410,6 +465,159 @@
       ]
     },
     {
+      "name": "observability-otlp-layer-facts",
+      "suites": ["otel-signal-boundary", "signal-token-view", "atomic-signals"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"http-client\"]}",
+        "package.json": "{\"dependencies\":{\"@effect/platform\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
+        "src/a.ts": "import { Otlp as WorkerOtlp } from \"@effect/opentelemetry\"\nimport { layer as otlpLayer } from \"@effect/opentelemetry/Otlp\"\nimport { HttpClient } from \"@effect/platform\"\nexport const OtelLive = WorkerOtlp.layer\nexport const OtelLive2 = otlpLayer({})\nexport const Client = HttpClient.HttpClient\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["observability-wiring-facts"],
+      "expectSignalFacts": [
+        {
+          "kind": "observability-wiring-facts",
+          "facts": {
+            "containsNodeSdkLayer": false,
+            "containsWebSdkLayer": false,
+            "containsOtlpLayer": true,
+            "containsHttpClientToken": true,
+            "opentelemetryImportedModules": ["Otlp"],
+            "opentelemetryLayerFactories": ["Otlp.layer"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "cf-wrangler-facts-green",
+      "suites": ["cloudflare-runtime-facts", "atomic-signals", "red-green-fixtures"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"http-server\"],\"wranglerPath\":\"wrangler.jsonc\"}",
+        "package.json": "{\"dependencies\":{\"@effect/platform\":\"1.0.0\",\"@effect/platform-bun\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
+        "wrangler.jsonc": "{\"main\":\"src/index.ts\",\"compatibility_date\":\"2025-12-17\",\"compatibility_flags\":[\"nodejs_compat\"],\"kv_namespaces\":[{\"binding\":\"EDGE_KV\",\"id\":\"kv-id\"}],\"d1_databases\":[{\"binding\":\"DB\",\"database_id\":\"d1-id\"}],\"limits\":{\"cpu_ms\":30}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["cloudflare-runtime-facts"],
+      "expectRequiredReferences": ["references/runtime-boundaries.md"],
+      "expectSignalFacts": [
+        {
+          "kind": "cloudflare-runtime-facts",
+          "facts": {
+            "errors": []
+          }
+        }
+      ],
+      "expectSignalFactPaths": [
+        {
+          "kind": "cloudflare-runtime-facts",
+          "facts": {
+            "platform.value": "cloudflare-worker",
+            "platform.source.path": "wrangler.jsonc",
+            "compatDate.value": "2025-12-17",
+            "compatFlags.0.value": "nodejs_compat",
+            "entryPoint.value": "src/index.ts",
+            "bindings.0.type": "d1_database",
+            "bindings.0.name": "DB",
+            "bindings.1.type": "kv_namespace",
+            "bindings.1.name": "EDGE_KV",
+            "limits.0.name": "cpu_ms",
+            "limits.0.value": 30
+          }
+        }
+      ]
+    },
+    {
+      "name": "cf-wrangler-scanner-overreach-red",
+      "suites": ["cloudflare-runtime-facts", "signals-no-semantic-verdicts", "cheapest-plausible-lies"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"http-server\"],\"wranglerPath\":\"wrangler.jsonc\"}",
+        "package.json": "{\"dependencies\":{\"@effect/platform\":\"1.0.0\",\"@effect/platform-bun\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
+        "wrangler.jsonc": "{\"main\":\"src/index.ts\",\"compatibility_date\":\"2025-12-17\",\"kv_namespaces\":[{\"binding\":\"EDGE_KV\",\"id\":\"kv-id\"}]}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["cloudflare-runtime-facts"]
+    },
+    {
+      "name": "cf-nodejs-compat-not-node-verdict-red",
+      "suites": ["cloudflare-runtime-facts", "signals-no-semantic-verdicts", "cheapest-plausible-lies"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"http-server\"],\"wranglerPath\":\"wrangler.jsonc\"}",
+        "package.json": "{\"dependencies\":{\"@effect/platform\":\"1.0.0\",\"@effect/platform-bun\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
+        "wrangler.jsonc": "{\"main\":\"src/index.ts\",\"compatibility_date\":\"2025-12-17\",\"compatibility_flags\":[\"nodejs_compat\"]}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["cloudflare-runtime-facts"],
+      "expectForbiddenActiveProfiles": ["node"],
+      "expectSignalFactPaths": [
+        {
+          "kind": "cloudflare-runtime-facts",
+          "facts": {
+            "compatFlags.0.value": "nodejs_compat"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cf-wrangler-jsonc-source-lines-green",
+      "suites": ["cloudflare-runtime-facts", "red-green-fixtures"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"http-server\"],\"wranglerPath\":\"wrangler.jsonc\"}",
+        "package.json": "{\"dependencies\":{\"@effect/platform\":\"1.0.0\",\"@effect/platform-bun\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
+        "wrangler.jsonc": "{\n  // compatibility_date = \"2020-01-01\"\n  \"main\": \"src/index.ts\",\n  \"compatibility_date\": \"2025-12-17\",\n  \"kv_namespaces\": [\n    { \"binding\": \"EDGE_KV\", \"id\": \"kv-id\" }\n  ],\n  \"limits\": { \"cpu_ms\": 30 }\n}\n",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["cloudflare-runtime-facts"],
+      "expectSignalFactPaths": [
+        {
+          "kind": "cloudflare-runtime-facts",
+          "facts": {
+            "compatDate.source.line": 4,
+            "entryPoint.source.line": 3,
+            "bindings.0.source.line": 6,
+            "limits.0.source.line": 8
+          }
+        }
+      ]
+    },
+    {
+      "name": "cf-wrangler-toml-unsupported-red",
+      "suites": ["cloudflare-runtime-facts", "evil-fixtures", "cheapest-plausible-lies"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"http-server\"],\"wranglerPath\":\"wrangler.toml\"}",
+        "package.json": "{\"dependencies\":{\"@effect/platform\":\"1.0.0\",\"@effect/platform-bun\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
+        "wrangler.toml": "main = \"src/index.ts\"\ncompatibility_date = \"2025-12-17\"\nkv_namespaces = [{ binding = \"EDGE_KV\", id = \"kv-id\" }]\n",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF905"],
+      "expectSignals": ["cloudflare-runtime-facts"],
+      "expectSignalFactPaths": [
+        {
+          "kind": "cloudflare-runtime-facts",
+          "facts": {
+            "errors.0.code": "unsupported-wrangler-format",
+            "errors.0.source.line": 1,
+            "bindings": []
+          }
+        }
+      ]
+    },
+    {
       "name": "tools-core-ban-bypass",
       "suites": ["library-node-tool-contract", "evil-tools-bypass", "evil-fixtures", "cheapest-plausible-lies"],
       "strict": true,
@@ -505,20 +713,21 @@
       "suites": ["profile-output", "profile-facts", "profile-required-references", "cheapest-plausible-lies"],
       "profile": true,
       "files": {
-        ".effect-skill.json": "{\"shape\":[\"http-server\",\"db:pg\",\"rpc\",\"frontend\",\"node\"]}",
-        "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\",\"@effect/platform\":\"1.0.0\",\"@effect/platform-node\":\"1.0.0\",\"@effect/sql-pg\":\"1.0.0\",\"@effect/rpc\":\"1.0.0\",\"@effect-atom/atom-react\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
+        ".effect-skill.json": "{\"shape\":[\"http-server\",\"db:pg\",\"ai\",\"rpc\",\"frontend\",\"workflow\",\"node\"],\"aiProviderTransports\":[{\"path\":\"src/ai-transport.ts\",\"owner\":\"@ai-transport\",\"reason\":\"terminal provider transport\"}]}",
+        "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\",\"@effect/platform\":\"1.0.0\",\"@effect/platform-node\":\"1.0.0\",\"@effect/sql-pg\":\"1.0.0\",\"@effect/ai\":\"1.0.0\",\"@effect/rpc\":\"1.0.0\",\"@effect/workflow\":\"1.0.0\",\"@effect-atom/atom-react\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
         "src/a.ts": "export const x = 1\n"
       },
       "expectExit": 0,
       "expectRules": [],
       "expectProfile": true,
-      "expectActiveProfiles": ["core", "db", "frontend", "http-server", "node", "rpc"],
+      "expectActiveProfiles": ["ai", "core", "db", "frontend", "http-server", "node", "rpc", "workflow"],
       "expectEffectVersions": ["v3"],
       "expectEffectVersionsResolution": "manifest",
       "expectRequiredReferences": [
         "references/generated/rules-summary.md",
         "references/generated/checklist.md",
         "references/scanner-manifest.md",
+        "references/effect-ai.md",
         "references/language-service.md",
         "references/versions/v3.md",
         "references/profiles/core.md",
@@ -526,7 +735,8 @@
         "references/profiles/frontend.md",
         "references/profiles/http-server.md",
         "references/profiles/node.md",
-        "references/profiles/rpc.md"
+        "references/profiles/rpc.md",
+        "references/workflow.md"
       ]
     },
     {
@@ -587,6 +797,17 @@
       },
       "expectExit": 1,
       "expectRules": ["EFF313"]
+    },
+    {
+      "name": "worker-shape-without-wrangler-red",
+      "suites": ["worker-shape-ambiguity", "package-presence", "fixture-coverage", "evil-fixtures"],
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"worker\"]}",
+        "package.json": "{\"dependencies\":{\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF906"]
     }
   ]
 }

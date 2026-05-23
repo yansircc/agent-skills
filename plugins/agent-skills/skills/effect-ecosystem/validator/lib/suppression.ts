@@ -24,7 +24,7 @@ export function isSuppressed(finding, manifest) {
   const rel = toPosix(finding.file)
   for (const item of manifest.allowedAdapters ?? []) {
     if (!item.rules?.includes(finding.ruleId)) continue
-    if (item.path === rel) return true
+    if (globToRegExp(item.path).test(rel)) return true
   }
   for (const item of manifest.generatedPaths ?? []) {
     if (globToRegExp(item.glob).test(rel)) return true

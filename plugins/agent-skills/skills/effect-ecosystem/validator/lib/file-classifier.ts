@@ -21,7 +21,7 @@ export function classifyFile(root, file, manifest) {
   const isHostTooling = Boolean(manifest?.hostTooling?.some((item) => matchesAny(normalized, [item.path])))
   const isExecutableEdge = Boolean(manifest?.executableEdges?.some((item) => item.path === normalized))
   const allowedAdapterRules = manifest?.allowedAdapters
-    ?.filter((item) => item.path === normalized)
+    ?.filter((item) => matchesAny(normalized, [item.path]))
     .flatMap((item) => item.rules ?? []) ?? []
   return {
     absolute: resolve(file),

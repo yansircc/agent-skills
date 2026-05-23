@@ -22,6 +22,10 @@
       "type": "array",
       "items": { "$ref": "#/$defs/adapterPath" }
     },
+    "aiProviderTransports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ownedPath" }
+    },
     "generatedPaths": {
       "type": "array",
       "items": { "$ref": "#/$defs/generatedPath" }
@@ -34,6 +38,7 @@
       "type": "array",
       "items": { "type": "string", "minLength": 1 }
     },
+    "wranglerPath": { "type": "string", "minLength": 1 },
     "suppression": {
       "type": "object",
       "additionalProperties": false,

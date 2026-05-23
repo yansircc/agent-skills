@@ -9,10 +9,12 @@ BUILD_DIR ?= dist
 build:
 	rm -rf "$(BUILD_DIR)"
 	./node_modules/.bin/tsc -p tsconfig.json
-	mkdir -p "$(BUILD_DIR)/validator/fixtures" "$(BUILD_DIR)/references"
+	mkdir -p "$(BUILD_DIR)/validator/fixtures" "$(BUILD_DIR)/references" "$(BUILD_DIR)/contracts/evidence"
 	cp validator/rules.jsonl validator/manifest.schema.json "$(BUILD_DIR)/validator/"
 	cp validator/fixtures/fixtures.config.json "$(BUILD_DIR)/validator/fixtures/"
-	cp references/scanner-manifest.md "$(BUILD_DIR)/references/"
+	cp references/scanner-manifest.md references/runtime-boundaries.md "$(BUILD_DIR)/references/"
+	cp contracts/*.json "$(BUILD_DIR)/contracts/"
+	cp contracts/evidence/*.json "$(BUILD_DIR)/contracts/evidence/"
 	chmod +x "$(BUILD_DIR)/validator/scan.js"
 
 install: build
@@ -28,6 +30,7 @@ verify: build
 	node "$(BUILD_DIR)/scripts/generate-derived-docs.js" --check
 	node "$(BUILD_DIR)/scripts/check-skill-thin.js"
 	node "$(BUILD_DIR)/scripts/check-profile-routing.js"
+	node "$(BUILD_DIR)/scripts/check-evidence-contracts.js"
 	node "$(BUILD_DIR)/scripts/typecheck-snippets.js"
 	node "$(BUILD_DIR)/validator/scan.js" --self-test --exact
 	node "$(BUILD_DIR)/validator/scan.js" --self-test --contract

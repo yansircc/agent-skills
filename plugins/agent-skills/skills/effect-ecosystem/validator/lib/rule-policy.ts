@@ -77,7 +77,7 @@ export const RULES = {
     name: "ai-without-effect-ai",
     family: "package",
     severity: "error",
-    message: "shape ai requires an @effect/ai provider and forbids direct provider SDK dependencies.",
+    message: "shape ai requires @effect/ai plus either an @effect/ai-* provider package or manifest-owned aiProviderTransports; direct provider SDK dependencies are forbidden.",
   },
   EFF313: {
     name: "workflow-without-effect-workflow",
@@ -193,6 +193,18 @@ export const RULES = {
     severity: "error",
     message: "Effect language-service probe did not prove bridge availability.",
   },
+  EFF905: {
+    name: "invalid-runtime-fact-source",
+    family: "infra",
+    severity: "error",
+    message: "Declared runtime fact source could not be read as supported facts.",
+  },
+  EFF906: {
+    name: "ambiguous-worker-shape",
+    family: "infra",
+    severity: "error",
+    message: "shape worker is ambiguous without a declared runtime fact source such as wranglerPath.",
+  },
 }
 
 export const PACKAGE_REQUIREMENTS = [
@@ -242,7 +254,8 @@ export const PACKAGE_REQUIREMENTS = [
   {
     ruleId: "EFF312",
     shapes: ["ai"],
-    prefixAnyOf: ["@effect/ai-"],
+    allOf: ["@effect/ai"],
+    providerPrefixAnyOf: ["@effect/ai-"],
     forbidden: ["openai", "@anthropic-ai/sdk", "@google/genai"],
   },
   {

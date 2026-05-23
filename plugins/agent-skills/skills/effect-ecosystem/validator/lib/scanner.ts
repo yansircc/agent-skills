@@ -11,6 +11,7 @@ import { applySuppressions, validateSuppressionDrift } from "./suppression.js"
 import { runLocalTsc, strictPrerequisites } from "./strict-gate.js"
 import { scanLspDiagnostics } from "./lsp-bridge.js"
 import { buildProfile, buildSignals } from "./profile.js"
+import { scanRuntimeFactRules } from "./runtime-facts.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const RULES_PATH = resolve(__dirname, "..", "rules.jsonl")
@@ -34,6 +35,7 @@ export function runScan(inputRoot: string, options: any = {}) {
     findings.push(...scanFilePairRules(root, files))
     findings.push(...scanPackageRules(root, manifest))
     findings.push(...scanEdgeRules(root, files, manifest))
+    findings.push(...scanRuntimeFactRules(root, manifest))
   }
 
   if (strict && manifest) {
@@ -68,7 +70,7 @@ export function runScan(inputRoot: string, options: any = {}) {
   if (lsp.compilerDiagnostics.length > 0) result.compilerDiagnostics = lsp.compilerDiagnostics
   if (options.profile) {
     result.profile = buildProfile(root, manifest, files, lspMeta)
-    result.signals = buildSignals(manifest, files)
+    result.signals = buildSignals(root, manifest, files)
   }
   return result
 }

@@ -30,7 +30,25 @@ Single package:
       "reason": "terminal HTTP adapter",
       "rules": ["EFF402"]
     }
+  ],
+  "aiProviderTransports": [
+    {
+      "path": "src/ai/provider-transport.ts",
+      "owner": "@ai-transport",
+      "reason": "terminal provider HTTP transport; @effect/ai owns loop semantics"
+    }
   ]
+}
+```
+
+Cloudflare targets can add `wranglerPath` to declare the runtime fact source.
+Only `wrangler.json` and `wrangler.jsonc` are supported until a real TOML parser
+with source positions owns TOML:
+
+```json
+{
+  "shape": ["http-server"],
+  "wranglerPath": "wrangler.jsonc"
 }
 ```
 
@@ -54,6 +72,17 @@ Monorepo:
 Supported shapes are defined in `validator/lib/rule-policy.mjs`. That runtime
 policy is the source of truth; schema and documentation must stay checked
 against it.
+
+`worker` is not a semantic profile by itself. A package that declares
+`shape: ["worker"]` must also declare `wranglerPath`; otherwise the scanner
+emits `EFF906` because the runtime role is ambiguous.
+
+`ai` requires `@effect/ai`. Provider execution can be satisfied either by an
+`@effect/ai-*` provider package or by explicit `aiProviderTransports[]` owner
+entries. The second form is for repos that keep provider HTTP/SSE transports as
+terminal adapters while `@effect/ai` owns the agent loop and tool semantics.
+Direct provider SDK dependencies such as `openai` or `@anthropic-ai/sdk` remain
+forbidden.
 
 ## Strict Contract
 
@@ -81,6 +110,20 @@ declared dependency owner instead of loading both v3 and v4 references.
    `SKILL.md`, and write an explicit judgment.
 5. Do not batch-fix signals by name. A signal is an atomic fact, not a verdict.
 
+`observability-wiring-facts` reports dependency presence plus discovered
+`@effect/opentelemetry` layer factories such as `NodeSdk.layer`, `WebSdk.layer`,
+or `Otlp.layer`. The scanner does not choose the correct runtime SDK for the
+target package; the reviewer must judge the emitted facts against the declared
+runtime shape.
+
+`cloudflare-runtime-facts` reports facts read from supported `wranglerPath`
+files: platform,
+compat date, compat flags, entry point, bindings, and configured limits. It must
+not infer Node runtime support from `nodejs_compat`, binding Layer correctness,
+request-scope safety, or any other runtime verdict. Use
+`references/runtime-boundaries.md` and record `validUnder` before claiming
+support.
+
 ## Suppression
 
 Line suppression requires a reason:
@@ -103,6 +146,10 @@ Manifest path suppression requires owner and reason:
   ]
 }
 ```
+
+`allowedAdapters.path` uses the same glob matcher as generated and host-tooling
+paths, so one owner entry can cover a coherent adapter family such as
+`src/lib/**/*.test.ts`.
 
 Use `--fail-on-suppression-drift` to reject expired, orphaned, or ownerless
 suppressions.

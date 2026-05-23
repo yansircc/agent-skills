@@ -1,0 +1,35 @@
+// validator/rules.jsonl
+// Derived from contracts/rules.json. Do not edit by hand.
+// Run: node scripts/generate-derived-docs.js
+{"id":"EFF001","name":"raw-try-catch","pattern":"\\btry\\s*\\{","message":"禁用原生 try/catch。改用 Effect.try / Effect.tryPromise 包裹副作用,失败通道用 Data.TaggedError"}
+{"id":"EFF002","name":"async-function","pattern":"\\basync\\s+function\\b","message":"禁用 async function。改写为 Effect.gen(function* () { ... }) + yield*"}
+{"id":"EFF003","name":"async-arrow","pattern":"\\basync\\s*\\(","message":"禁用 async 箭头函数。改写为 Effect.gen + yield*"}
+{"id":"EFF004","name":"await-keyword","pattern":"\\bawait\\s+","message":"禁用 await。Effect 内部用 yield*; 在边界用 Effect.runPromise / NodeRuntime.runMain"}
+{"id":"EFF005","name":"promise-static","pattern":"\\bPromise\\.(all|allSettled|race|any)\\b","message":"禁用 Promise 静态方法。改用 Effect.all({ concurrency }) / Effect.race / Effect.partition"}
+{"id":"EFF006","name":"import-axios","pattern":"from\\s+['\"]axios['\"]","message":"禁用 axios。改用 @effect/platform/HttpClient,配合 Schema 化解码"}
+{"id":"EFF007","name":"import-zod","pattern":"from\\s+['\"]zod['\"]","message":"禁用 zod。改用 effect/Schema (双向 codec)"}
+{"id":"EFF008","name":"import-yup","pattern":"from\\s+['\"]yup['\"]","message":"禁用 yup。改用 effect/Schema"}
+{"id":"EFF009","name":"import-arktype","pattern":"from\\s+['\"]arktype['\"]","message":"禁用 arktype。改用 effect/Schema"}
+{"id":"EFF010","name":"import-io-ts","pattern":"from\\s+['\"]io-ts['\"]","message":"禁用 io-ts。改用 effect/Schema"}
+{"id":"EFF011","name":"import-lodash","pattern":"from\\s+['\"]lodash","message":"禁用 lodash。改用 effect/Array / effect/HashMap / effect/HashSet / effect/Option 等"}
+{"id":"EFF012","name":"import-ramda","pattern":"from\\s+['\"]ramda['\"]","message":"禁用 ramda。改用 effect 内置集合与组合子"}
+{"id":"EFF013","name":"import-ts-pattern","pattern":"from\\s+['\"]ts-pattern['\"]","message":"禁用 ts-pattern。改用 effect/Match"}
+{"id":"EFF014","name":"import-tanstack-query","pattern":"from\\s+['\"]@tanstack/react-query['\"]","message":"禁用 @tanstack/react-query。改用 effect-atom (@effect-atom/atom-react) + Result 状态机"}
+{"id":"EFF015","name":"import-zustand","pattern":"from\\s+['\"]zustand","message":"禁用 zustand。改用 effect-atom (Atom.make)"}
+{"id":"EFF016","name":"import-jotai","pattern":"from\\s+['\"]jotai","message":"禁用 jotai。改用 effect-atom"}
+{"id":"EFF017","name":"import-react-hook-form","pattern":"from\\s+['\"]react-hook-form['\"]","message":"禁用 react-hook-form。改用 @lucas-barake/effect-form","ref":"references/effect-form.md"}
+{"id":"EFF018","name":"import-formik","pattern":"from\\s+['\"]formik['\"]","message":"禁用 formik。改用 @lucas-barake/effect-form","ref":"references/effect-form.md"}
+{"id":"EFF019","name":"import-tanstack-form","pattern":"from\\s+['\"]@tanstack/react-form['\"]","message":"禁用 @tanstack/react-form。改用 @lucas-barake/effect-form","ref":"references/effect-form.md"}
+{"id":"EFF020","name":"import-node-fs","pattern":"from\\s+['\"](?:node:)?fs(?:/promises)?['\"]","message":"禁用 node 原生 fs。改用 @effect/platform/FileSystem (Context 注入)"}
+{"id":"EFF021","name":"import-node-path","pattern":"from\\s+['\"](?:node:)?path['\"]","message":"禁用 node 原生 path。改用 @effect/platform/Path"}
+{"id":"EFF022","name":"set-timeout","pattern":"\\bsetTimeout\\s*\\(","message":"禁用 setTimeout。改用 Effect.sleep(Duration 字面量)"}
+{"id":"EFF023","name":"set-interval","pattern":"\\bsetInterval\\s*\\(","message":"禁用 setInterval。改用 Effect.repeat + Schedule.spaced / Schedule.fixed,配合 Effect.forkScoped"}
+{"id":"EFF024","name":"new-error","pattern":"\\bnew\\s+Error\\s*\\(","message":"禁止 new Error。所有领域错误用 Data.TaggedError class 声明"}
+{"id":"EFF025","name":"raw-throw","pattern":"\\bthrow\\s+","message":"禁用 throw。失败用 yield* new MyTaggedError({ ... }) 或 Effect.fail"}
+{"id":"EFF026","name":"date-now","pattern":"\\bDate\\.now\\s*\\(","message":"业务代码禁用 Date.now()。改用 Clock.currentTimeMillis (可测试)"}
+{"id":"EFF027","name":"process-env","pattern":"\\bprocess\\.env\\.","message":"禁止直读 process.env。改用 Config.string / Config.redacted + Layer 注入"}
+{"id":"EFF028","name":"import-node-cron","pattern":"from\\s+['\"]node-cron['\"]","message":"禁用 node-cron。改用 Schedule.cron(\"M H D M W\") + Effect.repeat"}
+{"id":"EFF029","name":"import-trpc","pattern":"from\\s+['\"]@trpc/","message":"禁用 trpc。改用 @effect/rpc (Schema 化请求/响应/错误)","ref":"references/sql-and-rpc.md"}
+{"id":"EFF030","name":"import-prisma","pattern":"from\\s+['\"]@prisma/client['\"]","message":"禁用 prisma。改用 @effect/sql-* 适配器 + SqlClient + Migrator","ref":"references/sql-and-rpc.md"}
+{"id":"EFF031","name":"import-moment-like","severity":"warning","pattern":"from\\s+['\"](?:moment|dayjs|date-fns)","message":"避免 moment/dayjs/date-fns。改用 effect/DateTime (带时区)"}
+{"id":"EFF032","name":"new-date","severity":"warning","pattern":"\\bnew\\s+Date\\s*\\(","message":"业务代码避免 new Date()。读时间用 Clock,日历计算用 DateTime;存时间戳用 number/ISO string"}

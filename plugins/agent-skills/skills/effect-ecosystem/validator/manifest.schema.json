@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://effect-ecosystem-skill.local/manifest.schema.json",
+  "title": ".effect-skill.json",
+  "type": "object",
+  "additionalProperties": false,
+  "oneOf": [
+    { "required": ["shape"], "not": { "required": ["packages"] } },
+    { "required": ["packages"], "not": { "required": ["shape"] } }
+  ],
+  "properties": {
+    "shape": { "$ref": "#/$defs/shapeArray" },
+    "packages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/package" }
+    },
+    "executableEdges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ownedPath" }
+    },
+    "allowedAdapters": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/adapterPath" }
+    },
+    "generatedPaths": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/generatedPath" }
+    },
+    "hostTooling": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ownedGlob" }
+    },
+    "testGlobs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "suppression": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lineLevel": { "$ref": "#/$defs/suppressionPolicy" },
+        "manifestPath": { "$ref": "#/$defs/suppressionPolicy" }
+      }
+    }
+  },
+  "$defs": {
+    "shape": {
+      "enum": [
+        "http-server",
+        "http-client",
+        "db:pg",
+        "db:mysql",
+        "db:sqlite",
+        "db:d1",
+        "db:clickhouse",
+        "ai",
+        "rpc",
+        "frontend",
+        "node",
+        "bun",
+        "browser",
+        "worker",
+        "library",
+        "node-tool",
+        "workflow"
+      ]
+    },
+    "shapeArray": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/shape" },
+      "uniqueItems": true
+    },
+    "package": {
+      "type": "object",
+      "required": ["path", "shape"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "shape": { "$ref": "#/$defs/shapeArray" },
+        "dependencyOwner": { "enum": ["package-local", "workspace-root"] },
+        "dependencyOwnerReason": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "dependencyOwner": { "const": "workspace-root" } },
+            "required": ["dependencyOwner"]
+          },
+          "then": { "required": ["dependencyOwnerReason"] }
+        }
+      ]
+    },
+    "ownedPath": {
+      "type": "object",
+      "required": ["path", "owner", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "adapterPath": {
+      "type": "object",
+      "required": ["path", "owner", "reason", "rules"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "rules": {
+          "type": "array",
+          "items": { "pattern": "^EFF[0-9]{3}$" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "generatedPath": {
+      "type": "object",
+      "required": ["glob", "owner", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "glob": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "ownedGlob": {
+      "type": "object",
+      "required": ["path", "owner", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "suppressionPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requireReason": { "type": "boolean" },
+        "requireOwner": { "type": "boolean" },
+        "allowExpires": { "type": "boolean" }
+      }
+    }
+  }
+}

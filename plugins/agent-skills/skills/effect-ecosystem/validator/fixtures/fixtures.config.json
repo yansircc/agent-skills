@@ -1,0 +1,592 @@
+{
+  "requiredSuites": [
+    "legacy-line-rules",
+    "include-exclude-rules",
+    "file-classifier",
+    "scoped-rule-applicability",
+    "manifest-strict",
+    "manifest-schema",
+    "rule-policy",
+    "policy-docs-schema-sync",
+    "suppression",
+    "suppression-drift",
+    "edge-rules",
+    "evil-edge-bypass",
+    "monorepo-dependency-resolution",
+    "evil-monorepo-root-leak",
+    "package-presence",
+    "evil-package-bypass",
+    "otel-presence",
+    "otel-signal-boundary",
+    "effect-vitest",
+    "test-scope-rules",
+    "library-node-tool-contract",
+    "evil-tools-bypass",
+    "red-green-fixtures",
+    "fixture-coverage",
+    "evil-fixtures",
+    "cheapest-plausible-lies",
+    "lsp-prerequisites",
+    "lsp-probe",
+    "lsp-diagnostics",
+    "lsp-marker-bypass",
+    "lsp-no-reimplementation",
+    "compiler-diagnostics-boundary",
+    "strict-lsp-full",
+    "profile-output",
+    "profile-exit-code",
+    "profile-facts",
+    "profile-required-references",
+    "profile-version-fast-fail",
+    "profile-manifest-one-truth",
+    "atomic-signals",
+    "signal-token-view",
+    "signals-no-semantic-verdicts",
+    "workflow-shape"
+  ],
+  "requiredRuleCoverage": [
+    "EFF000",
+    "EFF200",
+    "EFF300",
+    "EFF301",
+    "EFF302",
+    "EFF303",
+    "EFF304",
+    "EFF310",
+    "EFF311",
+    "EFF312",
+    "EFF313",
+    "EFF314",
+    "EFF315",
+    "EFF320",
+    "EFF321",
+    "EFF400",
+    "EFF401",
+    "EFF402",
+    "EFF403",
+    "EFF404",
+    "EFF500",
+    "EFF501",
+    "EFF502",
+    "EFF503",
+    "EFF900",
+    "EFF902",
+    "EFF903"
+  ],
+  "antiCheatCases": [
+    "missing-manifest-strict",
+    "empty-shape-strict",
+    "tools-core-ban-bypass",
+    "node-tool-package-bypass",
+    "workspace-root-leak",
+    "line-rule-comment-literal-green",
+    "signal-comment-literal-green",
+    "profile-exit-failing",
+    "profile-required-references",
+    "profile-version-unresolved-fast-fail",
+    "lsp-floating-probe",
+    "marker-only-lsp-bypass",
+    "generated-adjacent-not-exempt"
+  ],
+  "cases": [
+    {
+      "name": "legacy-try-catch-red",
+      "suites": ["legacy-line-rules", "red-green-fixtures"],
+      "files": { "src/a.ts": "try { work() } catch (e) {}\n" },
+      "expectExit": 1,
+      "expectRules": ["EFF001"]
+    },
+    {
+      "name": "legacy-test-excluded-green",
+      "suites": ["legacy-line-rules", "file-classifier", "red-green-fixtures"],
+      "files": { "src/a.test.ts": "try { work() } catch (e) {}\n" },
+      "expectExit": 0,
+      "expectRules": []
+    },
+    {
+      "name": "line-rule-comment-literal-green",
+      "suites": ["legacy-line-rules", "red-green-fixtures", "cheapest-plausible-lies"],
+      "files": {
+        "src/a.ts": "// throw new Error(\"comment only\")\nconst quoted = \"process.env.SECRET\"\nconst templ = `Date.now()`\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "exact": true
+    },
+    {
+      "name": "include-exclude-custom-rule",
+      "suites": ["include-exclude-rules"],
+      "rulesJsonl": "{\"id\":\"EFF001\",\"name\":\"custom-try\",\"pattern\":\"\\\\btry\\\\s*\\\\{\",\"message\":\"custom\",\"include\":[\"src/enforced/**\"],\"exclude\":[\"src/enforced/skip.ts\"]}\n",
+      "files": {
+        "src/enforced/a.ts": "try { work() } catch (e) {}\n",
+        "src/enforced/skip.ts": "try { work() } catch (e) {}\n",
+        "src/other/a.ts": "try { work() } catch (e) {}\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF001"],
+      "exact": true
+    },
+    {
+      "name": "test-effect-without-effect-vitest-import",
+      "suites": ["scoped-rule-applicability", "test-scope-rules", "effect-vitest", "red-green-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.test.ts": "import { Effect } from \"effect\"\nit(\"x\", () => Effect.succeed(1))\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF200"]
+    },
+    {
+      "name": "test-effect-with-effect-vitest-green",
+      "suites": ["test-scope-rules", "red-green-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.test.ts": "import { it } from \"@effect/vitest\"\nimport { Effect } from \"effect\"\nit.effect(\"x\", () => Effect.succeed(1))\n"
+      },
+      "expectExit": 0,
+      "expectRules": []
+    },
+    {
+      "name": "missing-manifest-strict",
+      "suites": ["manifest-strict", "evil-fixtures", "cheapest-plausible-lies"],
+      "strict": true,
+      "files": { "src/a.ts": "export const x = 1\n" },
+      "expectExit": 1,
+      "expectRules": ["EFF000"]
+    },
+    {
+      "name": "empty-shape-strict",
+      "suites": ["manifest-strict", "evil-fixtures", "cheapest-plausible-lies"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[]}",
+        "package.json": "{\"devDependencies\":{\"@effect/language-service\":\"1.0.0\"}}"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF903"]
+    },
+    {
+      "name": "invalid-manifest-owner",
+      "suites": ["manifest-schema", "red-green-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"],\"allowedAdapters\":[{\"path\":\"src/a.ts\",\"rules\":[\"EFF402\"],\"reason\":\"x\"}]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF900"]
+    },
+    {
+      "name": "suppression-reason-green",
+      "suites": ["suppression", "red-green-fixtures"],
+      "files": { "src/a.ts": "try { work() } catch (e) {} // eff-ignore EFF001 reason=\"generated\"\n" },
+      "expectExit": 0,
+      "expectRules": []
+    },
+    {
+      "name": "suppression-missing-reason-red",
+      "suites": ["suppression", "evil-fixtures"],
+      "files": { "src/a.ts": "try { work() } catch (e) {} // eff-ignore EFF001\n" },
+      "expectExit": 1,
+      "expectRules": ["EFF001"]
+    },
+    {
+      "name": "suppression-orphan-drift-red",
+      "suites": ["suppression-drift", "evil-fixtures"],
+      "failOnSuppressionDrift": true,
+      "files": { "src/a.ts": "const x = 1 // eff-ignore EFF001 reason=\"old\"\n" },
+      "expectExit": 1,
+      "expectRules": ["EFF001"]
+    },
+    {
+      "name": "edge-run-outside-edge",
+      "suites": ["edge-rules", "red-green-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"],\"executableEdges\":[{\"path\":\"src/main.ts\",\"owner\":\"@a\",\"reason\":\"entry\"}]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "Effect.runPromise(program)\n",
+        "src/main.ts": "NodeRuntime.runMain(program)\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF400"]
+    },
+    {
+      "name": "edge-missing-runmain",
+      "suites": ["edge-rules", "red-green-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"],\"executableEdges\":[{\"path\":\"src/main.ts\",\"owner\":\"@a\",\"reason\":\"entry\"}]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/main.ts": "Effect.runPromise(program)\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF401"]
+    },
+    {
+      "name": "adapter-constructor-outside-adapter",
+      "suites": ["edge-rules", "red-green-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/http.ts": "export const r = new Response(\"ok\")\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF402"]
+    },
+    {
+      "name": "namespace-import-red",
+      "suites": ["edge-rules", "evil-edge-bypass", "evil-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "import * as E from \"effect\"\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF403"]
+    },
+    {
+      "name": "dynamic-import-red",
+      "suites": ["edge-rules", "evil-edge-bypass", "evil-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "const x = await import(\"node:fs\")\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF004", "EFF404"]
+    },
+    {
+      "name": "aliased-run-red",
+      "suites": ["edge-rules", "evil-edge-bypass", "evil-fixtures", "cheapest-plausible-lies"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "const run = Effect.runPromise\nrun(program)\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF400"]
+    },
+    {
+      "name": "generated-adjacent-not-exempt",
+      "suites": ["edge-rules", "evil-edge-bypass", "evil-fixtures", "cheapest-plausible-lies"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"],\"generatedPaths\":[{\"glob\":\"src/generated/**\",\"owner\":\"@codegen\",\"reason\":\"generated\"}]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/foo.gen.ts": "Effect.runPromise(program)\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF400"]
+    },
+    {
+      "name": "monorepo-workspace-root-green",
+      "suites": ["monorepo-dependency-resolution", "red-green-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"packages\":[{\"path\":\"apps/web\",\"shape\":[\"ai\"],\"dependencyOwner\":\"workspace-root\",\"dependencyOwnerReason\":\"workspace deps\"}]}",
+        "package.json": "{\"dependencies\":{\"@effect/ai-openai\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "apps/web/src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": []
+    },
+    {
+      "name": "workspace-root-leak",
+      "suites": ["monorepo-dependency-resolution", "evil-monorepo-root-leak", "evil-fixtures", "cheapest-plausible-lies"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"packages\":[{\"path\":\"apps/web\",\"shape\":[\"ai\"]}]}",
+        "package.json": "{\"dependencies\":{\"@effect/ai-openai\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "apps/web/package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
+        "apps/web/src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF312", "EFF320"]
+    },
+    {
+      "name": "package-presence-all-red",
+      "suites": ["package-presence", "red-green-fixtures", "fixture-coverage"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"db:pg\",\"db:mysql\",\"db:sqlite\",\"db:d1\",\"db:clickhouse\",\"http-server\",\"http-client\",\"ai\",\"rpc\",\"frontend\",\"workflow\",\"node\"]}",
+        "package.json": "{\"dependencies\":{\"pg\":\"1.0.0\",\"mysql2\":\"1.0.0\",\"better-sqlite3\":\"1.0.0\",\"@clickhouse/client\":\"1.0.0\",\"express\":\"1.0.0\",\"axios\":\"1.0.0\",\"openai\":\"1.0.0\"},\"devDependencies\":{\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF300","EFF301","EFF302","EFF303","EFF304","EFF310","EFF311","EFF312","EFF313","EFF314","EFF315","EFF320","EFF321"]
+    },
+    {
+      "name": "node-tool-package-bypass",
+      "suites": ["evil-package-bypass", "library-node-tool-contract", "evil-tools-bypass", "evil-fixtures", "cheapest-plausible-lies"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"node-tool\",\"db:pg\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF300", "EFF320"]
+    },
+    {
+      "name": "otel-library-exempt-green",
+      "suites": ["otel-presence", "red-green-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": []
+    },
+    {
+      "name": "otel-app-missing-red",
+      "suites": ["otel-presence", "red-green-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"http-client\"]}",
+        "package.json": "{\"dependencies\":{\"@effect/platform\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF320"]
+    },
+    {
+      "name": "otel-wiring-signal-not-finding",
+      "suites": ["otel-signal-boundary", "atomic-signals"],
+      "strict": true,
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"http-client\"]}",
+        "package.json": "{\"dependencies\":{\"@effect/platform\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["observability-wiring-facts"]
+    },
+    {
+      "name": "signal-comment-literal-green",
+      "suites": ["atomic-signals", "signal-token-view", "cheapest-plausible-lies"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "// @example HttpApiEndpoint appears in docs only\nconst docs = `Rpc.make appears in docs only`\n/* NodeSdk.layer documentation only */\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignalCount": 0
+    },
+    {
+      "name": "observability-signal-token-view",
+      "suites": ["otel-signal-boundary", "signal-token-view"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"http-client\"]}",
+        "package.json": "{\"dependencies\":{\"@effect/platform\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
+        "src/a.ts": "// NodeSdk.layer docs only\nconst docs = `WebSdk.layer docs only`\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["observability-wiring-facts"],
+      "expectSignalFacts": [
+        {
+          "kind": "observability-wiring-facts",
+          "facts": {
+            "containsNodeSdkLayer": false,
+            "containsWebSdkLayer": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "tools-core-ban-bypass",
+      "suites": ["library-node-tool-contract", "evil-tools-bypass", "evil-fixtures", "cheapest-plausible-lies"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"node-tool\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "try { work() } catch (e) {}\nEffect.runPromise(program)\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF001", "EFF400"]
+    },
+    {
+      "name": "lsp-missing-devdep",
+      "suites": ["lsp-prerequisites", "red-green-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF902"]
+    },
+    {
+      "name": "lsp-floating-probe",
+      "suites": ["lsp-probe", "lsp-diagnostics", "strict-lsp-full", "fixture-coverage", "evil-fixtures", "cheapest-plausible-lies"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"type\":\"module\",\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\",\"typescript\":\"6.0.3\"}}",
+        "tsconfig.json": "{\"compilerOptions\":{\"target\":\"ES2022\",\"module\":\"NodeNext\",\"moduleResolution\":\"NodeNext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":true},\"include\":[\"src/**/*.ts\"]}",
+        "src/floating-effect.ts": "import { Effect } from \"effect\"\nEffect.log(\"x\")\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF500"]
+    },
+    {
+      "name": "lsp-context-error-layer-probe",
+      "suites": ["lsp-diagnostics", "strict-lsp-full", "fixture-coverage"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"type\":\"module\",\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\",\"typescript\":\"6.0.3\"}}",
+        "tsconfig.json": "{\"compilerOptions\":{\"target\":\"ES2022\",\"module\":\"NodeNext\",\"moduleResolution\":\"NodeNext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":true},\"include\":[\"src/**/*.ts\"]}",
+        "src/lsp.ts": "import { Context, Effect, Layer } from \"effect\"\n\nclass Needs extends Context.Tag(\"Needs\")<Needs, { readonly value: string }>() {}\nclass Out extends Context.Tag(\"Out\")<Out, { readonly value: string }>() {}\n\nconst needsService: Effect.Effect<void, never, Needs> = Effect.flatMap(Needs, () => Effect.void)\nexport const missingContext: Effect.Effect<void, never, never> = needsService\n\nconst fails: Effect.Effect<void, \"bad\", never> = Effect.fail(\"bad\" as const)\nexport const missingError: Effect.Effect<void, never, never> = fails\n\nconst needsLayer: Layer.Layer<Out, never, Needs> = Layer.effect(Out, Effect.map(Needs, (service) => service))\nexport const missingLayer: Layer.Layer<Out, never, never> = needsLayer\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF501","EFF502","EFF503"]
+    },
+    {
+      "name": "marker-only-lsp-bypass",
+      "suites": ["lsp-marker-bypass", "evil-fixtures", "cheapest-plausible-lies"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\",\"typescript\":\"6.0.3\"}}",
+        "src/floating-effect.ts": "// effect-lsp: floatingEffect\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "exact": true
+    },
+    {
+      "name": "compiler-diagnostic-not-effect-finding",
+      "suites": ["compiler-diagnostics-boundary"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "tsconfig.json": "{\"compilerOptions\":{\"strict\":true,\"noEmit\":true},\"include\":[\"src/**/*.ts\"]}",
+        "src/a.ts": "const x: string = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectCompilerDiagnostics": true
+    },
+    {
+      "name": "profile-exit-clean",
+      "suites": ["profile-output", "profile-exit-code", "profile-facts", "profile-manifest-one-truth"],
+      "strict": true,
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"dependencies\":{\"effect\":\"3.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectProfile": true
+    },
+    {
+      "name": "profile-required-references",
+      "suites": ["profile-output", "profile-facts", "profile-required-references", "cheapest-plausible-lies"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"http-server\",\"db:pg\",\"rpc\",\"frontend\",\"node\"]}",
+        "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\",\"@effect/platform\":\"1.0.0\",\"@effect/platform-node\":\"1.0.0\",\"@effect/sql-pg\":\"1.0.0\",\"@effect/rpc\":\"1.0.0\",\"@effect-atom/atom-react\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectProfile": true,
+      "expectActiveProfiles": ["core", "db", "frontend", "http-server", "node", "rpc"],
+      "expectEffectVersions": ["v3"],
+      "expectEffectVersionsResolution": "manifest",
+      "expectRequiredReferences": [
+        "references/generated/rules-summary.md",
+        "references/generated/checklist.md",
+        "references/scanner-manifest.md",
+        "references/language-service.md",
+        "references/versions/v3.md",
+        "references/profiles/core.md",
+        "references/profiles/db.md",
+        "references/profiles/frontend.md",
+        "references/profiles/http-server.md",
+        "references/profiles/node.md",
+        "references/profiles/rpc.md"
+      ]
+    },
+    {
+      "name": "profile-version-unresolved-fast-fail",
+      "suites": ["profile-output", "profile-facts", "profile-version-fast-fail", "cheapest-plausible-lies"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectProfile": true,
+      "expectEffectVersionsResolution": "unresolved",
+      "expectForbiddenRequiredReferences": [
+        "references/versions/v3.md",
+        "references/versions/v4.md"
+      ]
+    },
+    {
+      "name": "profile-exit-failing",
+      "suites": ["profile-output", "profile-exit-code", "evil-fixtures", "cheapest-plausible-lies"],
+      "strict": true,
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "try { work() } catch (e) {}\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF001"],
+      "expectProfile": true
+    },
+    {
+      "name": "atomic-signals-no-verdict",
+      "suites": ["atomic-signals", "signals-no-semantic-verdicts"],
+      "strict": true,
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/api.ts": "import { HttpApiEndpoint } from \"@effect/platform\"\nexport const route = HttpApiEndpoint\n",
+        "src/lib.ts": "export const program = Effect.succeed(1)\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["http-api-boundary-file", "library-exported-effect-file"]
+    },
+    {
+      "name": "workflow-shape-red",
+      "suites": ["workflow-shape", "package-presence", "fixture-coverage"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"workflow\"]}",
+        "package.json": "{\"dependencies\":{\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF313"]
+    }
+  ]
+}

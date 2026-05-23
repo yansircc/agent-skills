@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="zh"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>effect-ecosystem-skill · CST 当前状态</title>
+<style>
+  :root{
+    color-scheme: light dark;
+    --md-ink:#111;--md-charcoal:#242424;
+    --md-slate-800:#2b2b2b;--md-slate-700:#404040;--md-slate-600:#737373;
+    --md-slate-500:#8a8a8a;--md-slate-400:#a3a3a3;--md-slate-300:#d4d4d4;
+    --md-slate-200:#e5e5e5;--md-slate-100:#f1f1f1;--md-slate-50:#f9f9f9;
+    --md-paper:#fff;--md-shell:#ececeb;--md-surface:#f9f9f9;--md-hover:#f1f1f1;
+    --md-pond:#0055ff;--md-pond-50:#f0f6ff;
+    --md-success:#008844;--md-success-50:#edf8f2;
+    --md-warning:#946200;--md-warning-50:#fff7e8;
+    --md-danger:#c7332f;--md-danger-50:#fff0ef;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --md-ink:#f9f9f9;--md-charcoal:#e5e5e5;
+      --md-slate-800:#d4d4d4;--md-slate-700:#a3a3a3;--md-slate-600:#8a8a8a;
+      --md-slate-500:#737373;--md-slate-400:#404040;--md-slate-300:#2b2b2b;
+      --md-slate-200:#242424;--md-slate-100:#1a1a1a;--md-slate-50:#111;
+      --md-paper:#111;--md-shell:#0a0a0a;--md-surface:#1a1a1a;--md-hover:#242424;
+      --md-pond-50:rgba(0,85,255,.1);
+      --md-success-50:rgba(0,136,68,.1);
+      --md-warning-50:rgba(148,98,0,.1);
+      --md-danger-50:rgba(199,51,47,.1);
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'IBM Plex Sans',ui-sans-serif,system-ui,-apple-system,sans-serif;
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+    color:var(--md-charcoal);background:var(--md-shell);padding:32px 16px;
+  }
+  main{
+    max-width:1000px;margin:0 auto;background:var(--md-paper);
+    padding:32px 48px;border:1px solid var(--md-slate-200);border-radius:4px;
+    box-shadow:0 1px 2px rgba(0,0,0,.04);
+  }
+  a{color:var(--md-pond);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{
+    font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+    font-size:12px;color:var(--md-ink);
+  }
+  h1{font-size:20px;font-weight:600;margin:0 0 8px;line-height:1.2;color:var(--md-ink)}
+  .report-meta{
+    font-family:'JetBrains Mono',ui-monospace,monospace;
+    font-size:10px;color:var(--md-slate-500);
+    text-transform:uppercase;letter-spacing:.05em;
+    margin:0 0 12px;display:flex;gap:12px;flex-wrap:wrap;
+  }
+  .report-meta + .report-meta{margin-bottom:24px}
+  .kbd{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;
+    background:var(--md-surface);padding:1px 6px;border-radius:4px;
+    border:1px solid var(--md-slate-200);color:var(--md-slate-700);
+    text-transform:none;letter-spacing:0;
+  }
+  .scope-nav{display:flex;flex-wrap:wrap;gap:8px;margin:-8px 0 32px}
+  .scope-nav a{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;
+    color:var(--md-slate-600);background:var(--md-surface);
+    border:1px solid var(--md-slate-200);border-radius:4px;
+    padding:5px 10px;display:inline-flex;align-items:center;gap:8px;
+    text-decoration:none;
+  }
+  .scope-nav a:hover{background:var(--md-hover);color:var(--md-ink);text-decoration:none}
+  .scope-nav .nv-bar{display:inline-block;width:30px;height:3px;
+    background:var(--md-slate-200);border-radius:2px;overflow:hidden}
+  .scope-nav .nv-bar > i{display:block;height:100%;background:var(--md-success)}
+  .scope-nav .nv-frac{color:var(--md-ink);font-weight:500}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0 32px}
+  .stat-card{
+    background:var(--md-surface);border-radius:4px;padding:10px 14px;
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .stat-label{
+    font-family:'JetBrains Mono',ui-monospace,monospace;
+    color:var(--md-slate-500);font-size:10px;
+    text-transform:uppercase;letter-spacing:.06em;
+  }
+  .stat-value{
+    font-size:15px;font-weight:600;color:var(--md-ink);line-height:1.15;
+    font-variant-numeric:tabular-nums;
+  }
+  .run-diagnostics{
+    display:grid;grid-template-columns:1fr;gap:10px;margin:-12px 0 28px;
+  }
+  .run-list{
+    background:var(--md-surface);border:1px solid var(--md-slate-200);
+    border-radius:4px;padding:10px 12px;
+  }
+  .run-list-title{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;
+    color:var(--md-slate-500);text-transform:uppercase;letter-spacing:.06em;
+    margin-bottom:6px;font-weight:600;
+  }
+  .run-line{
+    display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;
+    color:var(--md-slate-600);line-height:1.7;
+  }
+  .run-node,.run-at{
+    color:var(--md-slate-500);font-size:10px;text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+  .run-line code{
+    background:var(--md-paper);border:1px solid var(--md-slate-200);
+    padding:1px 5px;border-radius:3px;color:var(--md-ink);font-size:11px;
+    word-break:break-all;
+  }
+  .run-line .cmd,.verify .cmd{
+    color:var(--md-pond);background:var(--md-pond-50);
+  }
+  .run-line .ok{color:var(--md-success);font-weight:600}
+  .run-line .fail{color:var(--md-danger);font-weight:600}
+  .run-line .trig{background:var(--md-slate-100);color:var(--md-slate-700);padding:1px 5px;border-radius:3px}
+  section.scope{margin:24px 0;scroll-margin-top:24px}
+  .callout{
+    border:1px solid var(--md-slate-200);border-radius:4px;
+    background:var(--md-paper);overflow:hidden;margin-bottom:16px;
+    box-shadow:0 1px 2px rgba(0,0,0,.02);
+  }
+  .callout-title{
+    display:flex;align-items:center;gap:10px;padding:10px 14px;
+    font-size:13px;font-weight:600;color:var(--md-ink);
+    border-bottom:1px solid var(--md-slate-200);background:var(--md-surface);
+  }
+  .callout-title::before{
+    content:"";width:8px;height:8px;border-radius:50%;
+    background:var(--md-slate-400);flex-shrink:0;
+  }
+  .callout.info .callout-title{background:var(--md-pond-50);border-bottom-color:rgba(0,85,255,.1)}
+  .callout.info .callout-title::before{background:var(--md-pond)}
+  .callout-body{padding:14px 18px;font-size:13px}
+  .callout-body > :first-child{margin-top:0}
+  .callout-body > :last-child{margin-bottom:0}
+  .scope-title{flex:1;min-width:0}
+  .scope-title .nid{
+    font-family:'JetBrains Mono',ui-monospace,monospace;
+    font-size:11px;font-weight:400;color:var(--md-slate-500);margin-right:8px;
+  }
+  .scope-meta{
+    margin-left:auto;font-family:'JetBrains Mono',ui-monospace,monospace;
+    font-size:10px;color:var(--md-slate-500);font-weight:400;
+    text-transform:uppercase;letter-spacing:.05em;
+  }
+  .crumb{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;
+    color:var(--md-slate-500);text-transform:uppercase;letter-spacing:.05em;
+    margin-bottom:12px;
+  }
+  .crumb a{color:var(--md-slate-500)}
+  .progress{margin:0 0 16px}
+  .bar{height:4px;background:var(--md-slate-100);border-radius:2px;overflow:hidden}
+  .bar > div{height:100%;background:var(--md-success);border-radius:2px}
+  .bar-line{
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;
+    color:var(--md-slate-500);text-transform:uppercase;letter-spacing:.05em;
+    margin-top:8px;flex-wrap:wrap;gap:8px;
+  }
+  .bar-line b{color:var(--md-ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .counts span{margin-left:12px}
+  .rules-block{
+    background:var(--md-surface);border:1px solid var(--md-slate-200);
+    border-radius:4px;padding:10px 14px;margin:0 0 16px;
+  }
+  .rules-label{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;
+    color:var(--md-slate-500);text-transform:uppercase;letter-spacing:.06em;
+    margin-bottom:6px;
+  }
+  .rules-block ul{margin:0;padding-left:20px;font-size:12px;color:var(--md-slate-700)}
+  .rules-block li{margin:4px 0}
+  .rule-id{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;
+    color:var(--md-slate-500);margin-right:4px;
+  }
+  .sub-scopes{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;
+    color:var(--md-slate-500);text-transform:uppercase;letter-spacing:.05em;
+    margin:0 0 16px;
+  }
+  .sub-scopes a{color:var(--md-pond)}
+  .sub-scopes .done-ref{color:var(--md-slate-400);text-decoration:line-through}
+  .group-label{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;
+    color:var(--md-slate-500);text-transform:uppercase;letter-spacing:.06em;
+    font-weight:500;margin:20px 0 8px;padding-top:8px;
+    border-top:1px solid var(--md-slate-100);
+  }
+  .group-label:first-of-type{border-top:none;padding-top:0;margin-top:0}
+  .task{
+    border:1px solid var(--md-slate-200);border-radius:4px;
+    background:var(--md-paper);margin:8px 0;overflow:hidden;
+  }
+  .task-head{
+    display:flex;align-items:center;gap:10px;padding:8px 12px;
+    border-bottom:1px solid var(--md-slate-200);background:var(--md-surface);
+    flex-wrap:wrap;
+  }
+  .task-head::before{
+    content:"";width:6px;height:6px;border-radius:50%;
+    background:var(--md-slate-400);flex-shrink:0;
+  }
+  .task.done .task-head{background:var(--md-success-50);border-bottom-color:rgba(0,136,68,.1)}
+  .task.done .task-head::before{background:var(--md-success)}
+  .task.claimed .task-head{background:var(--md-pond-50);border-bottom-color:rgba(0,85,255,.1)}
+  .task.claimed .task-head::before{background:var(--md-pond)}
+  .task.held .task-head{background:var(--md-warning-50);border-bottom-color:rgba(148,98,0,.1)}
+  .task.held .task-head::before{background:var(--md-warning)}
+  .task.abandoned .task-head{background:var(--md-danger-50);border-bottom-color:rgba(199,51,47,.1)}
+  .task.abandoned .task-head::before{background:var(--md-danger)}
+  .task-status{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;
+    text-transform:uppercase;letter-spacing:.06em;font-weight:600;
+  }
+  .task.done .task-status{color:var(--md-success)}
+  .task.claimed .task-status{color:var(--md-pond)}
+  .task.held .task-status{color:var(--md-warning)}
+  .task.abandoned .task-status{color:var(--md-danger)}
+  .task.ready .task-status{color:var(--md-slate-600)}
+  .task-nid{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;
+    color:var(--md-slate-500);
+  }
+  .task-title{font-size:13px;color:var(--md-ink);font-weight:500;flex:1;min-width:240px}
+  .task-when{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;
+    color:var(--md-slate-500);text-transform:uppercase;letter-spacing:.05em;
+    margin-left:auto;
+  }
+  .task-body{padding:12px 14px;font-size:13px}
+  .task-body > :first-child{margin-top:0}
+  .task-body > :last-child{margin-bottom:0}
+  .task-body > * + *{margin-top:10px}
+  .commands{
+    display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;
+    color:var(--md-slate-600);
+  }
+  .commands .field-label{width:100%;margin-bottom:0}
+  .commands code{
+    background:var(--md-surface);border:1px solid var(--md-slate-200);
+    padding:2px 6px;border-radius:3px;color:var(--md-pond);font-size:11px;
+    word-break:break-all;
+  }
+  .note{
+    background:var(--md-surface);border:1px solid var(--md-slate-200);
+    border-radius:4px;padding:10px 12px;font-size:12px;
+    line-height:1.55;color:var(--md-slate-700);
+    white-space:pre-wrap;word-break:break-word;
+  }
+  .field-label{
+    display:block;
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;
+    color:var(--md-slate-500);text-transform:uppercase;letter-spacing:.06em;
+    margin-bottom:4px;font-weight:500;
+  }
+  blockquote.reason{
+    margin:0;padding:4px 16px;font-size:12px;line-height:1.6;
+    border-left:3px solid var(--md-warning);color:var(--md-slate-700);
+  }
+  blockquote.reason.aban{border-left-color:var(--md-danger)}
+  blockquote.reason .field-label{margin-bottom:2px}
+  .verify{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;
+    color:var(--md-slate-600);line-height:1.7;
+  }
+  .verify code{background:var(--md-surface);border:1px solid var(--md-slate-200);
+    padding:1px 5px;border-radius:3px;color:var(--md-ink);font-size:11px;word-break:break-all}
+  .verify .ok{color:var(--md-success);font-weight:600}
+  .verify .fail{color:var(--md-danger);font-weight:600}
+  .verify .trig{background:var(--md-slate-100);color:var(--md-slate-700);padding:1px 5px;border-radius:3px}
+  .verify .truncated{color:var(--md-warning);margin-left:6px}
+  .run-detail{padding:8px 12px;background:var(--md-paper)}
+  .run-more{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;
+    color:var(--md-slate-500);text-transform:uppercase;letter-spacing:.05em;
+    margin-bottom:4px;
+  }
+  .acceptance{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;
+    color:var(--md-slate-600);
+  }
+  .acceptance code{background:var(--md-surface);border:1px solid var(--md-slate-200);
+    padding:1px 5px;border-radius:3px;color:var(--md-ink);font-size:11px;word-break:break-all}
+  details{
+    background:var(--md-surface);border:1px solid var(--md-slate-200);
+    border-radius:4px;margin:0;overflow:hidden;
+  }
+  details[open]{background:var(--md-paper)}
+  details[open] summary{border-bottom:1px solid var(--md-slate-200)}
+  details[open] summary::after{transform:rotate(135deg)}
+  summary{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;
+    font-weight:500;cursor:pointer;padding:8px 12px;list-style:none;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    color:var(--md-slate-700);
+  }
+  summary:hover{background:var(--md-hover)}
+  summary::-webkit-details-marker{display:none}
+  summary::after{
+    content:"";width:5px;height:5px;
+    border-top:1px solid currentColor;border-right:1px solid currentColor;
+    transform:rotate(45deg);transition:transform .2s;opacity:.5;flex-shrink:0;
+  }
+  details pre{
+    margin:0;padding:12px;background:var(--md-paper);color:var(--md-ink);
+    border:none;border-radius:0;font-family:'JetBrains Mono',ui-monospace,monospace;
+    font-size:11px;line-height:1.55;overflow:auto;max-height:300px;
+    white-space:pre-wrap;word-break:break-all;
+  }
+  details dl.ev-data{
+    margin:0;padding:10px 12px;background:var(--md-paper);font-size:11px;
+    color:var(--md-slate-700);
+  }
+  details dl.ev-data dt{
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:600;
+    color:var(--md-slate-500);font-size:10px;
+    text-transform:uppercase;letter-spacing:.05em;margin-top:8px;
+  }
+  details dl.ev-data dt:first-child{margin-top:0}
+  details dl.ev-data dd{
+    margin:2px 0 0;font-family:'JetBrains Mono',ui-monospace,monospace;
+    font-size:11px;word-break:break-word;color:var(--md-ink);
+  }
+  .empty{
+    color:var(--md-slate-500);font-style:italic;padding:24px 0;font-size:13px;
+    text-align:center;
+  }
+  footer{
+    margin-top:48px;padding-top:16px;border-top:1px solid var(--md-slate-100);
+    font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;
+    color:var(--md-slate-500);text-transform:uppercase;letter-spacing:.05em;
+  }
+  @media (max-width:640px){
+    body{padding:16px 8px}
+    main{padding:20px 18px}
+    .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head><body><main>
+<h1>effect-ecosystem-skill · CST 当前状态</h1>
+<div class="report-meta"><span>snapshot 2026-05-23 17:00</span><span>events 240</span><span>nodes 72</span><span style="color:var(--md-ink)">open tasks 3</span></div>
+<div class="report-meta"><span class="kbd">/Users/yansir/code/52/effect-ecosystem-skill/.cst/events.jsonl</span></div>
+<div class="kpi-grid"><div class="stat-card"><div class="stat-label">active scopes</div><div class="stat-value">1</div></div><div class="stat-card"><div class="stat-label">open / total</div><div class="stat-value">3 / 46</div></div><div class="stat-card"><div class="stat-label">claimed · held</div><div class="stat-value">1 · 0</div></div><div class="stat-card"><div class="stat-label">last event</div><div class="stat-value">1m 前</div></div></div>
+<nav class="scope-nav"><a href="#scope-61">#61 Hardening: real strict LSP bridg… <span class="nv-bar"><i style="width:57%"></i></span> <span class="nv-frac">4/7</span></a></nav>
+<section class="scope" id="scope-61"><div class="callout info"><div class="callout-title"><span class="scope-title"><span class="nid">#61</span>Hardening: real strict LSP bridge plus productized Node scanner entrypoint</span><span class="scope-meta">最近活动 1m 前</span></div><div class="callout-body"><div class="crumb">#1 Scanner v2: substrate scanner plus agent… ›</div><div class="progress"><div class="bar"><div style="width:57%"></div></div><div class="bar-line"><span><b>4</b> / 7 任务完成 · 57%</span><span class="counts"><span><b>1</b> 进行中</span><span><b>2</b> 待领取</span></span></div></div><div class="rules-block"><div class="rules-label">inherited rules · 11</div><ul><li><span class="rule-id">#2</span> Invariant: scanner outputs only mechanically falsifiable findings/profile atoms; agent owns semantic judgment against SKILL.md prose.</li><li><span class="rule-id">#3</span> Strict mode has no fallback: missing manifest, empty shape, missing tsc, missing @effect/language-service, or failed LSP probe are errors, not warnings.</li><li><span class="rule-id">#4</span> Verifier standard: every deterministic rule must have green, red, and evil fixtures; evil fixtures must reject the cheapest plausible agent shortcut or bypass.</li><li><span class="rule-id">#5</span> One fact, one owner: rule policy and exemption matrix live in one runtime source; schema and docs must be generated from it or checked against it.</li><li><span class="rule-id">#6</span> Executable edge is a file role, not a package shape; library/node-tool cannot be used as an escape hatch for core bans.</li><li><span class="rule-id">#7</span> Signals are atomic evidence, not conclusions: names and payloads must avoid semantic verdicts such as no-schema unless the scanner can mechanically prove the violation.</li><li><span class="rule-id">#8</span> --profile is only an output modifier; process exit code is determined solely by findings and must not become an agent bypass path.</li><li><span class="rule-id">#62</span> Decision boundary: keep scanner in Node ecosystem; do not Go-port scanner core while --strict depends on TypeScript and @effect/language-service; do not rewrite scanner core in EffectTS.</li><li><span class="rule-id">#63</span> Strict LSP owner: Effect semantic diagnostics come from @effect/language-service diagnostics CLI or patched TypeScript, not scanner markers or scanner reimplementation.</li><li><span class="rule-id">#64</span> Verifier source: frozen contract derives from contracts/rules.json, validator/fixtures/fixtures.config.json, and real LSP probe cases; current scanner stdout is not ground truth.</li><li><span class="rule-id">#65</span> Product install boundary: effect-skill-scan may be a Node shebang binary entrypoint, but docs and checks must not claim Node, TypeScript, or @effect/language-service dependencies disappeared.</li></ul></div><div class="group-label">未完成 · 3</div><div class="task claimed"><div class="task-head"><span class="task-status">进行中</span><span class="task-nid">#70</span><span class="task-title">Productize scanner as effect-skill-scan Node entrypoint and update skill workflow to call the installed command</span><span class="task-when">领取 1m 前</span></div><div class="task-body"><div class="commands"><span class="field-label">read commands</span><code>cst show 70</code><code>cst events --attempt dc3de38292398f6e0125b0b0</code></div><div class="acceptance"><span class="field-label">验收条件 verify.package-bin</span><code>node -e &#39;const p=require(&#34;./package.json&#34;); if(!p.bin?.[&#34;effect-skill-scan&#34;]) throw new Error(&#34;missing effect-skill-scan bin&#34;)&#39;</code></div><div class="acceptance"><span class="field-label">验收条件 verify.install</span><code>make install BIN=/tmp/effect-skill-scan-test &amp;&amp; /tmp/effect-skill-scan-test --self-test --exact</code></div><div class="acceptance"><span class="field-label">验收条件 verify.skill</span><code>make skill CODEX_SKILLS_DIR=/tmp/effect-skill-skills SKILL_NAME=effect-ecosystem-test &amp;&amp; test -L /tmp/effect-skill-skills/effect-ecosystem-test</code></div><div class="acceptance"><span class="field-label">验收条件 verify.thin</span><code>node scripts/check-skill-thin.mjs</code></div></div></div><div class="task ready"><div class="task-head"><span class="task-status">待领取</span><span class="task-nid">#71</span><span class="task-title">Migrate host tooling from mjs to plain TypeScript only, with no EffectTS scanner core and no behavior drift</span><span class="task-when">创建 13m 前</span></div><div class="task-body"><div class="commands"><span class="field-label">read commands</span><code>cst show 71</code></div><div class="acceptance"><span class="field-label">验收条件 verify.typecheck</span><code>tsc --noEmit -p tsconfig.json</code></div><div class="acceptance"><span class="field-label">验收条件 verify.install</span><code>make install BIN=/tmp/effect-skill-scan-ts</code></div><div class="acceptance"><span class="field-label">验收条件 verify.scanner</span><code>/tmp/effect-skill-scan-ts --self-test --exact</code></div><div class="acceptance"><span class="field-label">验收条件 verify.strict</span><code>/tmp/effect-skill-scan-ts . --strict --json --profile &gt;/tmp/effect-skill-ts-profile.json</code></div></div></div><div class="task ready"><div class="task-head"><span class="task-status">待领取</span><span class="task-nid">#72</span><span class="task-title">Final convergence gate for strict LSP truth, product entrypoint, generated docs, snippets, and self-scan</span><span class="task-when">创建 13m 前</span></div><div class="task-body"><div class="commands"><span class="field-label">read commands</span><code>cst show 72</code></div><div class="acceptance"><span class="field-label">验收条件 verify.registry</span><code>node scripts/check-registry.mjs</code></div><div class="acceptance"><span class="field-label">验收条件 verify.derived</span><code>node scripts/generate-derived-docs.mjs --check</code></div><div class="acceptance"><span class="field-label">验收条件 verify.thin</span><code>node scripts/check-skill-thin.mjs</code></div><div class="acceptance"><span class="field-label">验收条件 verify.routing</span><code>node scripts/check-profile-routing.mjs</code></div><div class="acceptance"><span class="field-label">验收条件 verify.snippets</span><code>node scripts/typecheck-snippets.mjs</code></div><div class="acceptance"><span class="field-label">验收条件 verify.install</span><code>make install BIN=/tmp/effect-skill-scan-final</code></div><div class="acceptance"><span class="field-label">验收条件 verify.exact</span><code>/tmp/effect-skill-scan-final --self-test --exact</code></div><div class="acceptance"><span class="field-label">验收条件 verify.contract</span><code>/tmp/effect-skill-scan-final --self-test --contract</code></div><div class="acceptance"><span class="field-label">验收条件 verify.strict</span><code>/tmp/effect-skill-scan-final . --strict --json --profile &gt;/tmp/effect-skill-final-profile.json</code></div></div></div><div class="group-label">已完成 · 4 · 按完成时间倒序</div><div class="task done"><div class="task-head"><span class="task-status">已完成</span><span class="task-nid">#69</span><span class="task-title">Implement LSP bridge through effect-language-service diagnostics while keeping TypeScript diagnostics separate</span><span class="task-when">完成 1m 前</span></div><div class="task-body"><div class="commands"><span class="field-label">read commands</span><code>cst show 69</code><code>cst events --attempt 90d31eb264e85aaf4f5c1745</code></div><div class="verify"><span class="field-label">latest script_run</span><span class="ok">✓ pass</span> <span class="trig">acceptance</span> <span class="trig">self</span> · <code>node validator/scan.mjs . --strict --json --profile &gt;/tmp/effect-skill-lsp-profile.json</code> · 0.2s · 3 runs <code class="cmd">cst events --attempt 90d31eb264e85aaf4f5c1745</code></div><details><summary>script_runs by attempt/check</summary><div class="run-detail"><div class="run-line"><span class="run-node">#69</span><span class="ok">pass</span> <span class="trig">acceptance</span> <span class="trig">self</span> <code>node validator/scan.mjs . --strict --json --profile &gt;/tmp/effect-skill-lsp-profile.json</code> <span class="run-at">1m 前</span> <code class="cmd">cst events --attempt 90d31eb264e85aaf4f5c1745</code></div><div class="run-line"><span class="run-node">#69</span><span class="ok">pass</span> <span class="trig">acceptance</span> <span class="trig">compiler</span> <code>node validator/scan.mjs --self-test --suite compiler-diagnostics-boundary --exact</code> <span class="run-at">1m 前</span> <code class="cmd">cst events --attempt 90d31eb264e85aaf4f5c1745</code></div><div class="run-line"><span class="run-node">#69</span><span class="ok">pass</span> <span class="trig">acceptance</span> <span class="trig">lsp</span> <code>node validator/scan.mjs --self-test --suite strict-lsp-full --exact</code> <span class="run-at">1m 前</span> <code class="cmd">cst events --attempt 90d31eb264e85aaf4f5c1745</code></div></div></details></div></div><div class="task done"><div class="task-head"><span class="task-status">已完成</span><span class="task-nid">#68</span><span class="task-title">Replace marker-only LSP fixtures with real language-service probe and marker-bypass anti-cheat cases</span><span class="task-when">完成 2m 前</span></div><div class="task-body"><div class="commands"><span class="field-label">read commands</span><code>cst show 68</code><code>cst events --attempt 9e4f43beea3901dedbaa1d7f</code></div><div class="verify"><span class="field-label">latest script_run</span><span class="ok">✓ pass</span> <span class="trig">acceptance</span> <span class="trig">anti-marker</span> · <code>node validator/scan.mjs --self-test --suite lsp-marker-bypass --exact</code> · 0.2s · 3 runs <code class="cmd">cst events --attempt 9e4f43beea3901dedbaa1d7f</code></div><details><summary>script_runs by attempt/check</summary><div class="run-detail"><div class="run-line"><span class="run-node">#68</span><span class="ok">pass</span> <span class="trig">acceptance</span> <span class="trig">anti-marker</span> <code>node validator/scan.mjs --self-test --suite lsp-marker-bypass --exact</code> <span class="run-at">2m 前</span> <code class="cmd">cst events --attempt 9e4f43beea3901dedbaa1d7f</code></div><div class="run-line"><span class="run-node">#68</span><span class="ok">pass</span> <span class="trig">acceptance</span> <span class="trig">real-lsp</span> <code>node validator/scan.mjs --self-test --suite strict-lsp-full --exact</code> <span class="run-at">2m 前</span> <code class="cmd">cst events --attempt 9e4f43beea3901dedbaa1d7f</code></div><div class="run-line"><span class="run-node">#68</span><span class="ok">pass</span> <span class="trig">acceptance</span> <span class="trig">contract</span> <code>node validator/scan.mjs --self-test --contract</code> <span class="run-at">2m 前</span> <code class="cmd">cst events --attempt 9e4f43beea3901dedbaa1d7f</code></div></div></details><details><summary>stdout · 25 chars</summary><pre>[self-test] ok (1 cases)
+</pre></details></div></div><div class="task done"><div class="task-head"><span class="task-status">已完成</span><span class="task-nid">#67</span><span class="task-title">Make strict LSP prerequisites explicit and project-local</span><span class="task-when">完成 2m 前</span></div><div class="task-body"><div class="commands"><span class="field-label">read commands</span><code>cst show 67</code><code>cst events --attempt 47c6250ba123a4b55249b2b9</code></div><div class="verify"><span class="field-label">latest script_run</span><span class="ok">✓ pass</span> <span class="trig">acceptance</span> <span class="trig">prereq</span> · <code>node validator/scan.mjs --self-test --suite lsp-prerequisites --exact</code> · 0.2s · 2 runs <code class="cmd">cst events --attempt 47c6250ba123a4b55249b2b9</code></div><details><summary>script_runs by attempt/check</summary><div class="run-detail"><div class="run-line"><span class="run-node">#67</span><span class="ok">pass</span> <span class="trig">acceptance</span> <span class="trig">prereq</span> <code>node validator/scan.mjs --self-test --suite lsp-prerequisites --exact</code> <span class="run-at">2m 前</span> <code class="cmd">cst events --attempt 47c6250ba123a4b55249b2b9</code></div><div class="run-line"><span class="run-node">#67</span><span class="ok">pass</span> <span class="trig">acceptance</span> <span class="trig">deps</span> <code>node -e &#39;const p=require(&#34;./package.json&#34;); if(!p.devDependencies?.typescript) throw new Error(&#34;missing typescript devDe…</code> <span class="run-at">2m 前</span> <code class="cmd">cst events --attempt 47c6250ba123a4b55249b2b9</code></div></div></details><details><summary>stdout · 25 chars</summary><pre>[self-test] ok (1 cases)
+</pre></details></div></div><div class="task done"><div class="task-head"><span class="task-status">已完成</span><span class="task-nid">#66</span><span class="task-title">Freeze verifier contract for real strict LSP bridge and product entrypoint hardening</span><span class="task-when">完成 8m 前</span></div><div class="task-body"><div class="note"><span class="field-label">Agent verifier_contract</span>frozen acceptance contract for real LSP and scanner productization</div><details><summary>evidence_data</summary><dl class="ev-data"><dt>blind_spots</dt><dd>[{&#34;axis&#34;:&#34;upstream language-service output format&#34;,&#34;reason&#34;:&#34;owned by @effect/language-service; scanner must parse current CLI output and keep fixtures pinned to the installed package version&#34;,&#34;review&#34;:&#34;rerun real LSP fixture when upgrading @effect/language-service&#34;},{&#34;axis&#34;:&#34;plain TS migration&#34;,&#34;reason&#34;:&#34;behavior preservation is fixture-gated, not covered by static typecheck alone&#34;,&#34;review&#34;:&#34;do n…</dd><dt>canonical_source</dt><dd>{&#34;files&#34;:[{&#34;path&#34;:&#34;contracts/rules.json&#34;,&#34;sha256&#34;:&#34;a02291a1c3e33a541eaeb02386c8f943d020ad51ce5e17285c2dff89151fda87&#34;,&#34;role&#34;:&#34;canonical rule registry&#34;},{&#34;path&#34;:&#34;validator/fixtures/fixtures.config.json&#34;,&#34;sha256&#34;:&#34;54c4c38bd2bd1586727426f479fbf72892eb5717f97fce54a3c876d0ae3520d6&#34;,&#34;role&#34;:&#34;fixture suite, required coverage, anti-cheat manifest&#34;},{&#34;path&#34;:&#34;node_modules/@effect/language-service/README.md&#34;,&#34;…</dd><dt>cheapest_plausible_lie</dt><dd>Keep markerDiagnostics accepting // effect-lsp: comments and claim strict LSP is real, or keep using bare tsc text parsing without invoking effect-language-service diagnostics.</dd><dt>manifest</dt><dd>{&#34;currentImplementationHashes&#34;:{&#34;validator/lib/lsp-bridge.mjs&#34;:&#34;79950b3fbba15760b896d16474df0869c88b90053ad216c4c2cab8d4240d6628&#34;,&#34;validator/lib/strict-gate.mjs&#34;:&#34;d42fba77a9f06c9c667885c612ab7d8e21e48b96c0e584e24130022f631b809a&#34;,&#34;package.json&#34;:&#34;b44405b8b211a1da493b603c3459c4f138ed62ad1e2c3e003eab1501c0501c64&#34;,&#34;SKILL.md&#34;:&#34;f2b7562c0578d65ab760e73263cc7a099bed9462ade85a466814f5301767103f&#34;},&#34;requiredO…</dd><dt>red_cases</dt><dd>[{&#34;name&#34;:&#34;marker-only-comments-do-not-produce-EFF500&#34;,&#34;command&#34;:&#34;node validator/scan.mjs --self-test --suite lsp-marker-bypass --exact&#34;,&#34;expected&#34;:&#34;fails until marker bypass fixture exists and passes without EFF500&#34;},{&#34;name&#34;:&#34;real-floating-effect-produces-EFF500&#34;,&#34;command&#34;:&#34;node validator/scan.mjs --self-test --suite strict-lsp-full --exact&#34;,&#34;expected&#34;:&#34;real Effect code triggers EFF500 through lan…</dd></dl></details><div class="commands"><span class="field-label">read commands</span><code>cst show 66</code><code>cst events --attempt 46c119e65c58d977962aef48</code></div></div></div></div></div></section>
+<footer>240 events · 11 goal · 15 rule · 46 task &nbsp;·&nbsp; 重跑 <span class="kbd">cst ui</span> 刷新此快照</footer>
+</main></body></html>

@@ -1,0 +1,511 @@
+{
+  "schemaVersion": 1,
+  "defaults": {
+    "include": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.mts",
+      "**/*.cts"
+    ],
+    "exclude": [
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      "**/*.test.tsx",
+      "**/*.spec.tsx",
+      "**/*.d.ts"
+    ]
+  },
+  "rules": [
+    {
+      "id": "EFF001",
+      "name": "raw-try-catch",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用原生 try/catch",
+      "prefer": "改用 Effect.try / Effect.tryPromise 包裹副作用,失败通道用 Data.TaggedError",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "\\btry\\s*\\{"
+      }
+    },
+    {
+      "id": "EFF002",
+      "name": "async-function",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 async function",
+      "prefer": "改写为 Effect.gen(function* () { ... }) + yield*",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "\\basync\\s+function\\b"
+      }
+    },
+    {
+      "id": "EFF003",
+      "name": "async-arrow",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 async 箭头函数",
+      "prefer": "改写为 Effect.gen + yield*",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "\\basync\\s*\\("
+      }
+    },
+    {
+      "id": "EFF004",
+      "name": "await-keyword",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 await",
+      "prefer": "Effect 内部用 yield*; 在边界用 Effect.runPromise / NodeRuntime.runMain",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "\\bawait\\s+"
+      }
+    },
+    {
+      "id": "EFF005",
+      "name": "promise-static",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 Promise 静态方法",
+      "prefer": "改用 Effect.all({ concurrency }) / Effect.race / Effect.partition",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "\\bPromise\\.(all|allSettled|race|any)\\b"
+      }
+    },
+    {
+      "id": "EFF006",
+      "name": "import-axios",
+      "severity": "error",
+      "profiles": [
+        "http-client",
+        "http-server"
+      ],
+      "forbid": "禁用 axios",
+      "prefer": "改用 @effect/platform/HttpClient,配合 Schema 化解码",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]axios['\"]"
+      }
+    },
+    {
+      "id": "EFF007",
+      "name": "import-zod",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 zod",
+      "prefer": "改用 effect/Schema (双向 codec)",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]zod['\"]"
+      }
+    },
+    {
+      "id": "EFF008",
+      "name": "import-yup",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 yup",
+      "prefer": "改用 effect/Schema",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]yup['\"]"
+      }
+    },
+    {
+      "id": "EFF009",
+      "name": "import-arktype",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 arktype",
+      "prefer": "改用 effect/Schema",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]arktype['\"]"
+      }
+    },
+    {
+      "id": "EFF010",
+      "name": "import-io-ts",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 io-ts",
+      "prefer": "改用 effect/Schema",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]io-ts['\"]"
+      }
+    },
+    {
+      "id": "EFF011",
+      "name": "import-lodash",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 lodash",
+      "prefer": "改用 effect/Array / effect/HashMap / effect/HashSet / effect/Option 等",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]lodash"
+      }
+    },
+    {
+      "id": "EFF012",
+      "name": "import-ramda",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 ramda",
+      "prefer": "改用 effect 内置集合与组合子",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]ramda['\"]"
+      }
+    },
+    {
+      "id": "EFF013",
+      "name": "import-ts-pattern",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 ts-pattern",
+      "prefer": "改用 effect/Match",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]ts-pattern['\"]"
+      }
+    },
+    {
+      "id": "EFF014",
+      "name": "import-tanstack-query",
+      "severity": "error",
+      "profiles": [
+        "frontend"
+      ],
+      "forbid": "禁用 @tanstack/react-query",
+      "prefer": "改用 effect-atom (@effect-atom/atom-react) + Result 状态机",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]@tanstack/react-query['\"]"
+      }
+    },
+    {
+      "id": "EFF015",
+      "name": "import-zustand",
+      "severity": "error",
+      "profiles": [
+        "frontend"
+      ],
+      "forbid": "禁用 zustand",
+      "prefer": "改用 effect-atom (Atom.make)",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]zustand"
+      }
+    },
+    {
+      "id": "EFF016",
+      "name": "import-jotai",
+      "severity": "error",
+      "profiles": [
+        "frontend"
+      ],
+      "forbid": "禁用 jotai",
+      "prefer": "改用 effect-atom",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]jotai"
+      }
+    },
+    {
+      "id": "EFF017",
+      "name": "import-react-hook-form",
+      "severity": "error",
+      "profiles": [
+        "frontend"
+      ],
+      "forbid": "禁用 react-hook-form",
+      "prefer": "改用 @lucas-barake/effect-form",
+      "references": [
+        "references/effect-form.md"
+      ],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]react-hook-form['\"]"
+      }
+    },
+    {
+      "id": "EFF018",
+      "name": "import-formik",
+      "severity": "error",
+      "profiles": [
+        "frontend"
+      ],
+      "forbid": "禁用 formik",
+      "prefer": "改用 @lucas-barake/effect-form",
+      "references": [
+        "references/effect-form.md"
+      ],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]formik['\"]"
+      }
+    },
+    {
+      "id": "EFF019",
+      "name": "import-tanstack-form",
+      "severity": "error",
+      "profiles": [
+        "frontend"
+      ],
+      "forbid": "禁用 @tanstack/react-form",
+      "prefer": "改用 @lucas-barake/effect-form",
+      "references": [
+        "references/effect-form.md"
+      ],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]@tanstack/react-form['\"]"
+      }
+    },
+    {
+      "id": "EFF020",
+      "name": "import-node-fs",
+      "severity": "error",
+      "profiles": [
+        "node"
+      ],
+      "forbid": "禁用 node 原生 fs",
+      "prefer": "改用 @effect/platform/FileSystem (Context 注入)",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"](?:node:)?fs(?:/promises)?['\"]"
+      }
+    },
+    {
+      "id": "EFF021",
+      "name": "import-node-path",
+      "severity": "error",
+      "profiles": [
+        "node"
+      ],
+      "forbid": "禁用 node 原生 path",
+      "prefer": "改用 @effect/platform/Path",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"](?:node:)?path['\"]"
+      }
+    },
+    {
+      "id": "EFF022",
+      "name": "set-timeout",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 setTimeout",
+      "prefer": "改用 Effect.sleep(Duration 字面量)",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "\\bsetTimeout\\s*\\("
+      }
+    },
+    {
+      "id": "EFF023",
+      "name": "set-interval",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 setInterval",
+      "prefer": "改用 Effect.repeat + Schedule.spaced / Schedule.fixed,配合 Effect.forkScoped",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "\\bsetInterval\\s*\\("
+      }
+    },
+    {
+      "id": "EFF024",
+      "name": "new-error",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁止 new Error",
+      "prefer": "所有领域错误用 Data.TaggedError class 声明",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "\\bnew\\s+Error\\s*\\("
+      }
+    },
+    {
+      "id": "EFF025",
+      "name": "raw-throw",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "禁用 throw",
+      "prefer": "失败用 yield* new MyTaggedError({ ... }) 或 Effect.fail",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "\\bthrow\\s+"
+      }
+    },
+    {
+      "id": "EFF026",
+      "name": "date-now",
+      "severity": "error",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "业务代码禁用 Date.now()",
+      "prefer": "改用 Clock.currentTimeMillis (可测试)",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "\\bDate\\.now\\s*\\("
+      }
+    },
+    {
+      "id": "EFF027",
+      "name": "process-env",
+      "severity": "error",
+      "profiles": [
+        "node"
+      ],
+      "forbid": "禁止直读 process.env",
+      "prefer": "改用 Config.string / Config.redacted + Layer 注入",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "\\bprocess\\.env\\."
+      }
+    },
+    {
+      "id": "EFF028",
+      "name": "import-node-cron",
+      "severity": "error",
+      "profiles": [
+        "node"
+      ],
+      "forbid": "禁用 node-cron",
+      "prefer": "改用 Schedule.cron(\"M H D M W\") + Effect.repeat",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]node-cron['\"]"
+      }
+    },
+    {
+      "id": "EFF029",
+      "name": "import-trpc",
+      "severity": "error",
+      "profiles": [
+        "rpc"
+      ],
+      "forbid": "禁用 trpc",
+      "prefer": "改用 @effect/rpc (Schema 化请求/响应/错误)",
+      "references": [
+        "references/sql-and-rpc.md"
+      ],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]@trpc/"
+      }
+    },
+    {
+      "id": "EFF030",
+      "name": "import-prisma",
+      "severity": "error",
+      "profiles": [
+        "db"
+      ],
+      "forbid": "禁用 prisma",
+      "prefer": "改用 @effect/sql-* 适配器 + SqlClient + Migrator",
+      "references": [
+        "references/sql-and-rpc.md"
+      ],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"]@prisma/client['\"]"
+      }
+    },
+    {
+      "id": "EFF031",
+      "name": "import-moment-like",
+      "severity": "warning",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "避免 moment/dayjs/date-fns",
+      "prefer": "改用 effect/DateTime (带时区)",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "from\\s+['\"](?:moment|dayjs|date-fns)"
+      }
+    },
+    {
+      "id": "EFF032",
+      "name": "new-date",
+      "severity": "warning",
+      "profiles": [
+        "core"
+      ],
+      "forbid": "业务代码避免 new Date()",
+      "prefer": "读时间用 Clock,日历计算用 DateTime;存时间戳用 number/ISO string",
+      "references": [],
+      "scanner": {
+        "kind": "line-regex",
+        "pattern": "\\bnew\\s+Date\\s*\\("
+      }
+    }
+  ]
+}

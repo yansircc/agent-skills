@@ -1,6 +1,6 @@
 # Agent Skills
 
-Reusable skills for [Claude Code](https://claude.com/claude-code) — thinking modes, workflows, and agent orchestration. Distributed as a Claude Code plugin marketplace.
+Reusable skills for [Claude Code](https://claude.com/claude-code) and Codex-compatible skill runtimes — thinking modes, workflows, and agent orchestration. Distributed as a Claude Code plugin marketplace.
 
 ## Install
 
@@ -24,6 +24,7 @@ Thinking, workflow, and tool reference skills.
 |-------|-------------|
 | **claude-cli** | Claude CLI command reference for building executable commands |
 | **codex-cli** | OpenAI Codex CLI command reference for building executable commands |
+| **effect-ecosystem** | Effect ecosystem compliance workflow with strict scanner and profile-guided references |
 | **debate** | Adversarial debate — spawn opposing agents to converge on truth through falsification |
 | **essence** | Compression mode — output the shortest generative program of the problem |
 | **handoff** | Session handoff — prepare knowledge transfer for the next session |

@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "type": "module",
+  "bin": {
+    "effect-skill-scan": "./dist/validator/scan.js"
+  },
+  "devDependencies": {
+    "@effect/language-service": "0.86.2",
+    "@effect/vitest": "0.29.0",
+    "@types/node": "^25.9.1",
+    "effect": "3.21.2",
+    "typescript": "^6.0.3"
+  }
+}

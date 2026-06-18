@@ -11,6 +11,7 @@ export function compileContractValidators(contractsDir = DEFAULT_CONTRACTS_DIR) 
   const runtimeFactsSchema = readJson(resolve(contractsDir, "runtime-facts.schema.json"))
   const evidenceSchema = readJson(resolve(contractsDir, "evidence-schema.json"))
   const scanEvidenceSchema = readJson(resolve(contractsDir, "scan-evidence.schema.json"))
+  const gateSummarySchema = readJson(resolve(contractsDir, "gate-summary.schema.json"))
   const signalsContract = readJson(resolve(contractsDir, "signals.schema.json"))
   const effectCapabilitiesContract = readJson(resolve(contractsDir, "effect-capabilities.json"))
   const ajv = new Ajv2020({ allErrors: true, strict: false })
@@ -18,6 +19,7 @@ export function compileContractValidators(contractsDir = DEFAULT_CONTRACTS_DIR) 
   const validateRuntimeFacts = ajv.compile(runtimeFactsSchema)
   const validateEvidence = ajv.compile(evidenceSchema)
   const validateScanEvidence = ajv.compile(scanEvidenceSchema)
+  const validateGateSummary = ajv.compile(gateSummarySchema)
   const validateSignalsContractShape = ajv.compile(signalsContractShapeSchema())
   const validateEffectCapabilitiesShape = ajv.compile(effectCapabilitiesShapeSchema())
   const signalDefinitions = signalDefinitionsByKind(signalsContract)
@@ -32,6 +34,7 @@ export function compileContractValidators(contractsDir = DEFAULT_CONTRACTS_DIR) 
     validateRuntimeFacts: (value) => validate("runtime-facts", validateRuntimeFacts, value),
     validateEvidence: (value) => validate("evidence", validateEvidence, value),
     validateScanEvidence: (value) => validate("scan-evidence", validateScanEvidence, value),
+    validateGateSummary: (value) => validate("gate-summary", validateGateSummary, value),
     validateSignalContract: (value = signalsContract) => validate("signals", validateSignalsContractShape, value),
     validateEffectCapabilities: (value = effectCapabilitiesContract) => validate("effect-capabilities", validateEffectCapabilitiesShape, value),
     validateSignal: (value) => validateSignalValue(value, signalDefinitions, signalFactValidators),

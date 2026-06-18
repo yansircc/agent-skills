@@ -40,6 +40,16 @@
     },
     "wranglerPath": { "type": "string", "minLength": 1 },
     "effectMajorPolicy": { "enum": ["dual-track"] },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "notProven": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notProven" }
+        }
+      }
+    },
     "suppression": {
       "type": "object",
       "additionalProperties": false,
@@ -139,6 +149,16 @@
       "additionalProperties": false,
       "properties": {
         "path": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "notProven": {
+      "type": "object",
+      "required": ["id", "owner", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
         "owner": { "type": "string", "minLength": 1 },
         "reason": { "type": "string", "minLength": 1 }
       }

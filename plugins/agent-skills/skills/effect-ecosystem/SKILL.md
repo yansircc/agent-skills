@@ -36,22 +36,25 @@ compatibility guess.
 3. Run the scanner:
 
    ```bash
-   effect-skill-scan <repo> --strict --json --profile
+   effect-skill-scan <repo> --strict --json --profile --evidence <dir>
    ```
 
-4. Treat `findings` as mechanical evidence. Fix them or add an owned,
-   reasoned suppression.
-5. Treat `signals` as agent review prompts. Read the referenced files and make
+4. Record `<dir>/gate-summary.json` as the Effect mechanical compliance gate.
+   Keep `<dir>/scan-result.json` as an artifact path instead of pasting raw JSON
+   into task evidence.
+5. Treat error findings as mechanical blockers. Warning findings are report-only.
+   Fix blockers or add an owned, reasoned suppression.
+6. Treat `signals` as agent review prompts. Read the referenced files and make
    a written judgment against the relevant references.
-6. Load only `profile.requiredReferences` from the scanner output. If the field
+7. Load only `profile.requiredReferences` from the scanner output. If the field
    is missing, the installed scanner is stale; run `make install` for release and
    `make verify`. If `profile.effectVersionsResolution` is `unresolved` or
    `conflict`, fix declared intent or installed reality before continuing.
-7. If the same friction class lands in project evidence twice, graduate it into
+8. If the same friction class lands in project evidence twice, graduate it into
    a skill artifact instead of leaving another project-only note.
-8. Each new spike must name its own invariant; do not reuse an existing
+9. Each new spike must name its own invariant; do not reuse an existing
    reference theme unless the generator is actually shared.
-9. Before delivery, run the verification gates listed below.
+10. Before delivery, run the verification gates listed below.
 
 ## Reference Routing
 
@@ -94,7 +97,7 @@ make verify-v4-acceptance
 ```
 
 For a target project, run its normal tests plus
-`effect-skill-scan <repo> --strict --json --profile`.
+`effect-skill-scan <repo> --strict --json --profile --evidence <dir>`.
 
 ## Host Tooling Boundary
 

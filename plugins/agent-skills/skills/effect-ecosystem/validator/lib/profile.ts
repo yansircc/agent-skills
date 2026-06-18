@@ -164,6 +164,7 @@ export function buildSignals(root, manifest, files, scanState = null) {
       facts: runtimeFacts,
     })
   }
+  const libraryEffectRollups = new Map()
   for (const file of files) {
     if (file.roles.generated) continue
     const text = codeTokenText(file)
@@ -187,15 +188,26 @@ export function buildSignals(root, manifest, files, scanState = null) {
       })
     }
     if (file.package?.shape?.includes("library") && /\bexport\s+(const|function)\b/.test(text)) {
-      emit("library-exported-effect-file", {
-        package: file.package.path,
-        file: file.relative,
-        facts: {
-          hasExports: true,
-          containsEffectType: /\bEffect\./.test(text),
-          containsWithSpan: /\bEffect\.withSpan\b/.test(text),
-        },
-      })
+      const containsEffectType = /\bEffect\./.test(text)
+      const containsWithSpan = /\bEffect\.withSpan\b/.test(text)
+      if (containsEffectType) {
+        const rollup = libraryEffectRollups.get(file.package.path) ?? { exportedEffectFiles: 0, withSpanFiles: 0, withoutSpanFiles: 0 }
+        rollup.exportedEffectFiles += 1
+        if (containsWithSpan) rollup.withSpanFiles += 1
+        else rollup.withoutSpanFiles += 1
+        libraryEffectRollups.set(file.package.path, rollup)
+      }
+      if (containsEffectType && !containsWithSpan) {
+        emit("library-exported-effect-file", {
+          package: file.package.path,
+          file: file.relative,
+          facts: {
+            hasExports: true,
+            containsEffectType,
+            containsWithSpan,
+          },
+        })
+      }
     }
     const resilienceCalls = facts.calls.filter((name) =>
       ["Effect.retry", "Effect.repeat", "Schedule.recurs", "Schedule.exponential", "Schedule.spaced", "Schedule.fixed", "Schedule.jittered", "Schedule.upTo"].includes(name)
@@ -221,6 +233,13 @@ export function buildSignals(root, manifest, files, scanState = null) {
     }
   }
   for (const pkg of manifest.packages) {
+    const rollup = libraryEffectRollups.get(pkg.path)
+    if (pkg.shape.includes("library") && rollup) {
+      emit("library-exported-effect-package", {
+        package: pkg.path,
+        facts: rollup,
+      })
+    }
     const resolved = packageResolution(scanState, pkg.path)
     const effectMajor = safePackageMajor(resolved)
     const missingOtelPeers = effectMajor === 4 && Boolean(pkg.deps["@effect/opentelemetry"])

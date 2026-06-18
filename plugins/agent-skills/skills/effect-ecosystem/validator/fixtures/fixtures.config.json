@@ -50,6 +50,10 @@
     "effect-capabilities",
     "version-resolver",
     "scan-evidence",
+    "gate-summary",
+    "compliance-hash",
+    "notProven-manifest",
+    "library-exported-effect-rollup",
     "resilience-signals",
     "pubsub-signals",
     "v4-package-rules",
@@ -808,7 +812,7 @@
       },
       "expectExit": 0,
       "expectRules": [],
-      "expectSignals": ["http-api-boundary-file", "library-exported-effect-file"]
+      "expectSignals": ["http-api-boundary-file", "library-exported-effect-file", "library-exported-effect-package"]
     },
     {
       "name": "resilience-jittered-signal-green",

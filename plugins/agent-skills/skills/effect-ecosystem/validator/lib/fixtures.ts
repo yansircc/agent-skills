@@ -28,6 +28,10 @@ const INTERNAL_SUITES = [
   "signal-contract",
   "reference-routing",
   "effect-capabilities",
+  "gate-summary",
+  "compliance-hash",
+  "notProven-manifest",
+  "library-exported-effect-rollup",
 ]
 
 export function runSelfTest(options: any = {}) {
@@ -168,11 +172,21 @@ function runCases(config: any, options: any) {
 function validateEvidenceHashAxes(testCase, root, result, rulesPath) {
   const failures = []
   const evidencePath = resolve(root, ".scan-evidence", "scan-evidence.json")
+  const gatePath = resolve(root, ".scan-evidence", "gate-summary.json")
+  const rawPath = resolve(root, ".scan-evidence", "scan-result.json")
   const inputHashPath = resolve(root, ".scan-evidence", "input.sha256")
   const fullHashPath = resolve(root, ".scan-evidence", "full.sha256")
   const evidence = JSON.parse(readFileSync(evidencePath, "utf8"))
+  const gate = JSON.parse(readFileSync(gatePath, "utf8"))
+  const raw = JSON.parse(readFileSync(rawPath, "utf8"))
   const inputHash = readFileSync(inputHashPath, "utf8").trim()
   const fullHash = readFileSync(fullHashPath, "utf8").trim()
+  const validators = compileContractValidators()
+  const evidenceValidation = validators.validateScanEvidence(evidence)
+  if (!evidenceValidation.ok) failures.push(`${testCase.name}: ${evidenceValidation.message}`)
+  const gateValidation = validators.validateGateSummary(gate)
+  if (!gateValidation.ok) failures.push(`${testCase.name}: ${gateValidation.message}`)
+  if (!raw.profile || !raw.signals) failures.push(`${testCase.name}: raw scan-result missing profile/signals`)
   const targetInput = {
     target: evidence.target,
     resolution: evidence.resolution,
@@ -180,6 +194,9 @@ function validateEvidenceHashAxes(testCase, root, result, rulesPath) {
     references: evidence.references,
   }
   if (sha256(stableJson(targetInput)) !== inputHash) failures.push(`${testCase.name}: inputHash does not match stable target subtree`)
+  if (gate.scanner.inputHash !== inputHash) failures.push(`${testCase.name}: gate-summary inputHash mismatch`)
+  if (gate.scanner.fullHash !== fullHash) failures.push(`${testCase.name}: gate-summary fullHash mismatch`)
+  if (gate.complianceHash !== result.evidence?.complianceHash) failures.push(`${testCase.name}: result evidence complianceHash mismatch`)
   const scannerChanged = structuredClone(evidence)
   scannerChanged.scanner.buildInfo.buildId = `${scannerChanged.scanner.buildInfo.buildId}:changed`
   if (sha256(stableJson(scannerChanged)) === fullHash) failures.push(`${testCase.name}: fullHash ignored scanner build-info`)
@@ -199,6 +216,7 @@ function validateEvidenceHashAxes(testCase, root, result, rulesPath) {
     evidenceDir: repeatDir,
   })
   if (repeat.evidence?.inputHash !== result.evidence?.inputHash) failures.push(`${testCase.name}: repeated evidence inputHash changed`)
+  if (repeat.evidence?.complianceHash !== result.evidence?.complianceHash) failures.push(`${testCase.name}: repeated evidence complianceHash changed`)
   return failures
 }
 
@@ -257,6 +275,7 @@ function runInternalSuiteChecks(config: any, options: any) {
     if (!existsSync(resolve(__dirname, "..", "..", "contracts", "runtime-facts.schema.json"))) failures.push("policy-docs-schema-sync: missing contracts/runtime-facts.schema.json")
     if (!existsSync(resolve(__dirname, "..", "..", "contracts", "evidence-schema.json"))) failures.push("policy-docs-schema-sync: missing contracts/evidence-schema.json")
     if (!existsSync(resolve(__dirname, "..", "..", "contracts", "scan-evidence.schema.json"))) failures.push("policy-docs-schema-sync: missing contracts/scan-evidence.schema.json")
+    if (!existsSync(resolve(__dirname, "..", "..", "contracts", "gate-summary.schema.json"))) failures.push("policy-docs-schema-sync: missing contracts/gate-summary.schema.json")
   }
   if (!suite || suite === "fixture-coverage") {
     const covered = new Set(config.cases.flatMap((testCase) => testCase.expectRules ?? []))
@@ -299,7 +318,173 @@ function runInternalSuiteChecks(config: any, options: any) {
   if (!suite || suite === "effect-capabilities") {
     failures.push(...validateEffectCapabilitiesContract())
   }
+  if (!suite || suite === "gate-summary") {
+    failures.push(...validateGateSummaryBundle())
+  }
+  if (!suite || suite === "compliance-hash") {
+    failures.push(...validateComplianceHash())
+  }
+  if (!suite || suite === "notProven-manifest") {
+    failures.push(...validateNotProvenManifest())
+  }
+  if (!suite || suite === "library-exported-effect-rollup") {
+    failures.push(...validateLibraryExportedEffectRollup())
+  }
   return failures
+}
+
+function validateGateSummaryBundle() {
+  const failures = []
+  const root = mkdtempSync(resolve(tmpdir(), "effect-skill-gate-summary-"))
+  try {
+    writeFiles(root, {
+      ".effect-skill.json": "{\"shape\":[\"library\"]}",
+      "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+      "src/warn.ts": "export const now = new Date()\n",
+      "src/signal.ts": "export const program = Effect.succeed(1)\n",
+    })
+    linkFixtureNodeModules(root)
+    const evidenceDir = resolve(root, ".scan-evidence")
+    const result = runScan(root, { evidenceDir })
+    const gate = readGateSummary(evidenceDir)
+    const raw = JSON.parse(readFileSync(resolve(evidenceDir, "scan-result.json"), "utf8"))
+    const evidence = JSON.parse(readFileSync(resolve(evidenceDir, "scan-evidence.json"), "utf8"))
+    const validators = compileContractValidators()
+    const gateValidation = validators.validateGateSummary(gate)
+    if (!gateValidation.ok) failures.push(`gate-summary: ${gateValidation.message}`)
+    if (!existsSync(resolve(evidenceDir, "scan-result.json"))) failures.push("gate-summary: missing scan-result.json")
+    if (!existsSync(resolve(evidenceDir, "scan-evidence.json"))) failures.push("gate-summary: missing scan-evidence.json")
+    if (!existsSync(resolve(evidenceDir, "gate-summary.json"))) failures.push("gate-summary: missing gate-summary.json")
+    if (gate.ok !== true) failures.push("gate-summary: warning-only scan should be ok")
+    if (gate.exitCode !== 0) failures.push("gate-summary: warning-only exitCode should be 0")
+    if (!gate.tiers.report.some((finding) => finding.ruleId === "EFF032")) failures.push("gate-summary: warning missing from report tier")
+    if (gate.tiers.block.length !== 0) failures.push("gate-summary: warning-only scan populated block tier")
+    if (gate.tiers.review.signals.blocking !== false) failures.push("gate-summary: signals must be non-blocking")
+    if (gate.scanner.inputHash !== result.evidence?.inputHash) failures.push("gate-summary: inputHash does not reference evidence result")
+    if (gate.scanner.fullHash !== result.evidence?.fullHash) failures.push("gate-summary: fullHash does not reference evidence result")
+    if (gate.scanner.inputHash !== readFileSync(resolve(evidenceDir, "input.sha256"), "utf8").trim()) failures.push("gate-summary: inputHash file mismatch")
+    if (gate.scanner.fullHash !== readFileSync(resolve(evidenceDir, "full.sha256"), "utf8").trim()) failures.push("gate-summary: fullHash file mismatch")
+    if (gate.scanner.inputHash !== sha256(stableJson({
+      target: evidence.target,
+      resolution: evidence.resolution,
+      capabilities: evidence.capabilities,
+      references: evidence.references,
+    }))) failures.push("gate-summary: inputHash does not match evidence target subtree")
+    if (JSON.stringify(gate).includes("\"packages\"")) failures.push("gate-summary: summary leaked raw profile packages")
+    if (Array.isArray(gate.tiers.review.signals.items)) failures.push("gate-summary: summary leaked signal items")
+    if (!raw.profile || !raw.signals) failures.push("gate-summary: raw scan-result missing profile/signals")
+
+    writeFileSync(resolve(root, "src/error.ts"), "try { work() } catch (e) {}\n")
+    const errorDir = resolve(root, ".scan-evidence-error")
+    const errorResult = runScan(root, { evidenceDir: errorDir })
+    const errorGate = readGateSummary(errorDir)
+    if (errorResult.summary.errors === 0) failures.push("gate-summary: error fixture did not emit errors")
+    if (errorGate.ok !== false) failures.push("gate-summary: error scan should not be ok")
+    if (!errorGate.tiers.block.some((finding) => finding.ruleId === "EFF001")) failures.push("gate-summary: error missing from block tier")
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+  return failures
+}
+
+function validateComplianceHash() {
+  const failures = []
+  const root = mkdtempSync(resolve(tmpdir(), "effect-skill-compliance-"))
+  try {
+    writeFiles(root, {
+      ".effect-skill.json": "{\"shape\":[\"library\"]}",
+      "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+      "src/a.ts": "export const program = Effect.succeed(1)\n",
+    })
+    linkFixtureNodeModules(root)
+    const firstDir = resolve(root, ".scan-evidence-first")
+    runScan(root, { evidenceDir: firstDir })
+    const first = readGateSummary(firstDir)
+    writeFileSync(resolve(root, "src/a.ts"), "export const program = Effect.succeed(1).pipe(Effect.withSpan(\"a\"))\n")
+    const signalChangedDir = resolve(root, ".scan-evidence-signal-changed")
+    runScan(root, { evidenceDir: signalChangedDir })
+    const signalChanged = readGateSummary(signalChangedDir)
+    if (first.complianceHash !== signalChanged.complianceHash) failures.push("compliance-hash: signal-only change changed complianceHash")
+
+    writeFileSync(resolve(root, "src/warn.ts"), "export const now = new Date()\n")
+    const warningDir = resolve(root, ".scan-evidence-warning")
+    runScan(root, { evidenceDir: warningDir })
+    const warning = readGateSummary(warningDir)
+    if (first.complianceHash === warning.complianceHash) failures.push("compliance-hash: warning finding did not change complianceHash")
+    const expected = sha256(stableJson({
+      scannerBuildId: warning.scanner.buildId,
+      findings: [...warning.tiers.block, ...warning.tiers.report],
+    }))
+    if (warning.complianceHash !== expected) failures.push("compliance-hash: summary hash does not match normalized block/report findings")
+    const changedBuild = sha256(stableJson({
+      scannerBuildId: `${warning.scanner.buildId}:changed`,
+      findings: [...warning.tiers.block, ...warning.tiers.report],
+    }))
+    if (warning.complianceHash === changedBuild) failures.push("compliance-hash: scanner buildId change did not affect comparison hash")
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+  return failures
+}
+
+function validateNotProvenManifest() {
+  const failures = []
+  const root = mkdtempSync(resolve(tmpdir(), "effect-skill-not-proven-"))
+  try {
+    writeFiles(root, {
+      ".effect-skill.json": "{\"shape\":[\"library\"],\"gate\":{\"notProven\":[{\"id\":\"live-recorded-authored\",\"owner\":\"agentOS\",\"reason\":\"agentOS architectural invariant outside Effect scanner scope\"}]}}",
+      "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+      "src/a.ts": "export const x = 1\n",
+    })
+    linkFixtureNodeModules(root)
+    const evidenceDir = resolve(root, ".scan-evidence")
+    runScan(root, { evidenceDir })
+    const gate = readGateSummary(evidenceDir)
+    if (!gate.notProven.some((item) => item.id === "architecture-boundaries" && item.source === "scanner-default")) failures.push("notProven-manifest: missing scanner default")
+    if (!gate.notProven.some((item) => item.id === "live-recorded-authored" && item.source === "manifest" && item.owner === "agentOS")) failures.push("notProven-manifest: missing manifest extension")
+
+    writeFileSync(resolve(root, ".effect-skill.json"), "{\"shape\":[\"library\"]}")
+    const defaultDir = resolve(root, ".scan-evidence-default")
+    runScan(root, { evidenceDir: defaultDir })
+    const defaultGate = readGateSummary(defaultDir)
+    if (defaultGate.notProven.some((item) => item.id === "live-recorded-authored")) failures.push("notProven-manifest: default scanner leaked product-specific notProven id")
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+  return failures
+}
+
+function validateLibraryExportedEffectRollup() {
+  const failures = []
+  const root = mkdtempSync(resolve(tmpdir(), "effect-skill-rollup-"))
+  try {
+    writeFiles(root, {
+      ".effect-skill.json": "{\"shape\":[\"library\"]}",
+      "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+      "src/no-effect.ts": "export const value = 1\n",
+      "src/with-span.ts": "export const withSpan = Effect.succeed(1).pipe(Effect.withSpan(\"with-span\"))\n",
+      "src/without-span.ts": "export const withoutSpan = Effect.succeed(1)\n",
+    })
+    linkFixtureNodeModules(root)
+    const evidenceDir = resolve(root, ".scan-evidence")
+    const result = runScan(root, { evidenceDir })
+    const fileSignals = result.signals.filter((signal) => signal.kind === "library-exported-effect-file")
+    const rollups = result.signals.filter((signal) => signal.kind === "library-exported-effect-package")
+    if (fileSignals.length !== 1 || fileSignals[0].file !== "src/without-span.ts") failures.push("library-exported-effect-rollup: file-level signal was not narrowed to missing-span Effect export")
+    if (rollups.length !== 1) failures.push("library-exported-effect-rollup: expected one package rollup")
+    const facts = rollups[0]?.facts ?? {}
+    if (facts.exportedEffectFiles !== 2 || facts.withSpanFiles !== 1 || facts.withoutSpanFiles !== 1) failures.push(`library-exported-effect-rollup: bad rollup facts ${formatJson(facts)}`)
+    const gate = readGateSummary(evidenceDir)
+    const packageRollup = gate.tiers.review.signals.packageRollups[0]
+    if (!packageRollup || packageRollup.facts.exportedEffectFiles !== 2) failures.push("library-exported-effect-rollup: gate summary did not project raw package rollup")
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+  return failures
+}
+
+function readGateSummary(evidenceDir) {
+  return JSON.parse(readFileSync(resolve(evidenceDir, "gate-summary.json"), "utf8"))
 }
 
 function validateLspCache() {

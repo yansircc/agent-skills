@@ -13,7 +13,7 @@ import { scanLspDiagnostics } from "./lsp-bridge.js"
 import { activeProfilesFor, buildProfile, buildSignals } from "./profile.js"
 import { scanRuntimeFactRules } from "./runtime-facts.js"
 import { resolveScanState } from "./resolver.js"
-import { writeScanEvidence } from "./evidence.js"
+import { writeScanBundle } from "./evidence.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const RULES_PATH = resolve(__dirname, "..", "rules.jsonl")
@@ -74,12 +74,12 @@ export function runScan(inputRoot: string, options: any = {}) {
     warnings,
   }
   if (lsp.compilerDiagnostics.length > 0) result.compilerDiagnostics = lsp.compilerDiagnostics
-  if (options.profile) {
+  if (options.profile || options.evidenceDir) {
     result.profile = timings.measure("profile", () => buildProfile(root, manifest, files, lspMeta, scanState))
     result.signals = timings.measure("signals", () => buildSignals(root, manifest, files, scanState))
   }
   if (options.evidenceDir) {
-    result.evidence = timings.measure("evidence", () => writeScanEvidence(root, manifest, files, lspMeta, scanState, options.evidenceDir))
+    result.evidence = timings.measure("evidence", () => writeScanBundle(root, manifest, files, lspMeta, scanState, options.evidenceDir, result))
   }
   if (options.timings) {
     result.timings = {

@@ -2,8 +2,8 @@
 
 Scanner v2 has three outputs with different authority:
 
-- `findings`: deterministic, mechanically falsifiable evidence. These decide
-  exit code.
+- `findings`: deterministic, mechanically falsifiable evidence. Error findings
+  decide exit code; warning findings are report-only.
 - `profile`: resolved routing state for the reviewer. It is not a semantic
   verdict.
 - `signals`: atomic observations for agent review. They never prove the review
@@ -12,6 +12,9 @@ Scanner v2 has three outputs with different authority:
 `effect-skill-scan --strict` passing means the mechanical layer found no
 violations. It does not mean the agent completed the semantic review required by
 `SKILL.md`.
+
+Gate actionability is fixed: error findings are `BLOCK`, warning findings are
+`REPORT`, and signals are `REVIEW`.
 
 ## Manifest
 
@@ -55,6 +58,27 @@ local `package.json` is the dependency owner.
 `shape: ["worker"]` must also declare `wranglerPath`; otherwise the scanner
 emits `EFF906` because the runtime role is ambiguous.
 
+Targets may append product-specific non-proof boundaries to the gate summary:
+
+```json
+{
+  "shape": ["library"],
+  "gate": {
+    "notProven": [
+      {
+        "id": "live-recorded-authored",
+        "owner": "agentOS",
+        "reason": "agentOS architecture invariant outside Effect scanner scope"
+      }
+    ]
+  }
+}
+```
+
+The scanner default `notProven` list contains only generic categories such as
+type-level limits beyond LSP, runtime behavior, and architecture boundaries.
+Product-specific names belong in the target manifest, not scanner code.
+
 ## Contract Owners
 
 Growing scanner contract enumerations must live in a checked owner. Unchecked
@@ -81,6 +105,12 @@ policy, and OTel peer closure policy.
 `contracts/scan-evidence.schema.json` owns `ScanEvidenceV1`. The hash-stable
 input subtree is `target + resolution + capabilities + references`; scanner
 provenance is stored separately and only affects `fullHash`.
+
+### Contract Owner: gate-summary
+
+`contracts/gate-summary.schema.json` owns the CST/CI gate projection. It is
+derived from raw scan output and scan evidence; it must not recompute resolver
+or provenance facts.
 
 ## Strict Contract
 
@@ -250,17 +280,18 @@ does not reimplement Effect typeflow.
 
 ## Agent Workflow
 
-1. Run `effect-skill-scan <repo> --strict --json --profile`.
+1. Run `effect-skill-scan <repo> --strict --json --profile --evidence <dir>`.
 2. Read `profile.effectVersionsResolution`, `profile.effectVersionsProof`, and
    evidence/resolver output. Do not manually infer version truth from package
    files when resolver output exists.
-3. Treat `findings` as mechanical evidence. Fix the code or add a structured,
-   owned suppression.
+3. Treat error findings as mechanical blockers. Warning findings are report-only.
 4. If version resolution is `unresolved` or `conflict`, stop and repair the
    dependency owner or install state before version-gated semantic review.
 5. Treat `signals` as review prompts. Read each `skill_ref`, compare it to the
    code, and write an explicit judgment.
-6. Do not batch-fix signals by name. A signal is an atomic fact, not a verdict.
+6. Record `gate-summary.json` in CST/CI evidence and keep raw JSON as an
+   artifact path. Do not paste full raw JSON into task evidence.
+7. Do not batch-fix signals by name. A signal is an atomic fact, not a verdict.
 
 ## Agent Review Signals
 
@@ -280,7 +311,13 @@ visible.
 
 ### Signal: library-exported-effect-file
 
-Reports exported library Effect files and whether span tokens are visible.
+Reports exported library Effect files that contain Effect tokens and no visible
+`Effect.withSpan` token.
+
+### Signal: library-exported-effect-package
+
+Reports one package-level rollup for exported library Effect files, including
+counts with and without visible span tokens.
 
 ### Signal: ai-runtime-facts
 
@@ -313,12 +350,23 @@ deterministic finding.
 `effect-skill-scan <repo> --strict --json --profile --evidence <dir>` writes:
 
 - `scan-evidence.json`
+- `scan-result.json`
+- `gate-summary.json`
 - `input.sha256`
 - `full.sha256`
 
 `input.sha256` covers only `target + resolution + capabilities + references`
-and is the target-state oracle. `full.sha256` covers the whole evidence record,
-including scanner `build-info.json`, and is the audit hash.
+and is the target-state replay/debug hash. `full.sha256` covers the whole
+evidence record, including scanner `build-info.json`, and is the audit hash.
+
+`gate-summary.json` is the CST/CI consumption surface. It contains
+`ok = errors === 0`, block/report/review tiers, scanner provenance references,
+and `complianceHash`.
+
+`complianceHash` hashes normalized block/report findings plus scanner build id.
+It is comparable only when `scanner.buildId` is equal. If the scanner build
+changes, re-baseline the gate instead of treating the hash as comparable. Dirty
+scanner builds are not reproducible acceptance evidence.
 
 ## Timings And Cache
 

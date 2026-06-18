@@ -44,7 +44,7 @@
       "kind": "library-exported-effect-file",
       "requiredTopLevel": ["package", "file"],
       "skill_ref": "references/observability.md §1. Span / Tracing",
-      "agent_action": "Read exported Effects and decide which public boundaries need spans.",
+      "agent_action": "Read exported Effects without visible spans and decide which public boundaries need spans.",
       "factsSchema": {
         "type": "object",
         "additionalProperties": false,
@@ -53,6 +53,22 @@
           "hasExports": { "type": "boolean" },
           "containsEffectType": { "type": "boolean" },
           "containsWithSpan": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "kind": "library-exported-effect-package",
+      "requiredTopLevel": ["package"],
+      "skill_ref": "references/observability.md §1. Span / Tracing",
+      "agent_action": "Use the package-level exported Effect rollup as review context; inspect file-level signals for actionable span gaps.",
+      "factsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["exportedEffectFiles", "withSpanFiles", "withoutSpanFiles"],
+        "properties": {
+          "exportedEffectFiles": { "type": "number" },
+          "withSpanFiles": { "type": "number" },
+          "withoutSpanFiles": { "type": "number" }
         }
       }
     },

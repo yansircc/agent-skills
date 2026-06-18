@@ -91,6 +91,7 @@ export function validateManifestShape(raw) {
   if (raw.wranglerPath !== undefined && (typeof raw.wranglerPath !== "string" || raw.wranglerPath.trim() === "")) {
     errors.push("wranglerPath must be a non-empty string")
   }
+  validateGate(raw.gate, errors)
   return errors
 }
 
@@ -159,6 +160,9 @@ function normalizeManifest(root, raw, manifestPath) {
     aiProviderTransports: normalizePathItems(raw.aiProviderTransports ?? []),
     generatedPaths: raw.generatedPaths ?? [],
     hostTooling: raw.hostTooling ?? [],
+    gate: {
+      notProven: raw.gate?.notProven ?? [],
+    },
     wranglerPath: raw.wranglerPath ? toPosix(raw.wranglerPath) : null,
     testGlobs: raw.testGlobs ?? ["**/*.test.ts", "**/*.spec.ts", "**/*.test.tsx", "**/*.spec.tsx"],
     suppression: raw.suppression ?? {
@@ -166,6 +170,28 @@ function normalizeManifest(root, raw, manifestPath) {
       manifestPath: { requireReason: true, requireOwner: true },
     },
   }
+}
+
+function validateGate(gate, errors) {
+  if (gate === undefined) return
+  if (!gate || typeof gate !== "object" || Array.isArray(gate)) {
+    errors.push("gate must be an object")
+    return
+  }
+  if (gate.notProven === undefined) return
+  if (!Array.isArray(gate.notProven)) {
+    errors.push("gate.notProven must be an array")
+    return
+  }
+  gate.notProven.forEach((item, index) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      errors.push(`gate.notProven[${index}] must be an object`)
+      return
+    }
+    if (typeof item.id !== "string" || item.id.trim() === "") errors.push(`gate.notProven[${index}].id is required`)
+    if (typeof item.owner !== "string" || item.owner.trim() === "") errors.push(`gate.notProven[${index}].owner is required`)
+    if (typeof item.reason !== "string" || item.reason.trim() === "") errors.push(`gate.notProven[${index}].reason is required`)
+  })
 }
 
 function validateHostTooling(items, errors) {

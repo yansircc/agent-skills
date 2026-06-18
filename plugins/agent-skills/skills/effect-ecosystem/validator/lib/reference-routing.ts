@@ -28,6 +28,7 @@ export function collectReferenceRoutes(root = process.cwd()) {
     { owner: "contracts/signals.schema.json", ref: "references/scanner-manifest.md §Contract Owner: signals" },
     { owner: "contracts/effect-capabilities.json", ref: "references/scanner-manifest.md §Contract Owner: effect-capabilities" },
     { owner: "contracts/scan-evidence.schema.json", ref: "references/scanner-manifest.md §Contract Owner: scan-evidence" },
+    { owner: "contracts/gate-summary.schema.json", ref: "references/scanner-manifest.md §Contract Owner: gate-summary" },
   )
 
   for (const rule of rulesContract.rules ?? []) {

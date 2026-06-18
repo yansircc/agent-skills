@@ -1,11 +1,13 @@
 # Scanner v2 Manifest And Agent Workflow
 
-Scanner v2 has two outputs with different authority:
+Scanner v2 has three outputs with different authority:
 
 - `findings`: deterministic, mechanically falsifiable evidence. These decide
   exit code.
-- `profile` and `signals`: substrate for agent review. These never prove the
-  semantic review is complete.
+- `profile`: resolved routing state for the reviewer. It is not a semantic
+  verdict.
+- `signals`: atomic observations for agent review. They never prove the review
+  is complete.
 
 `effect-skill-scan --strict` passing means the mechanical layer found no
 violations. It does not mean the agent completed the semantic review required by
@@ -43,91 +45,298 @@ Single package:
 
 Cloudflare targets can add `wranglerPath` to declare the runtime fact source.
 Only `wrangler.json` and `wrangler.jsonc` are supported until a real TOML parser
-with source positions owns TOML:
+with source positions owns TOML.
 
-```json
-{
-  "shape": ["http-server"],
-  "wranglerPath": "wrangler.jsonc"
-}
-```
-
-Monorepo:
-
-```json
-{
-  "packages": [
-    { "path": "apps/web", "shape": ["http-server", "frontend"] },
-    {
-      "path": "apps/worker",
-      "shape": ["worker", "db:pg"],
-      "dependencyOwner": "workspace-root",
-      "dependencyOwnerReason": "workspace root owns shared runtime deps"
-    },
-    { "path": "packages/runtime", "shape": ["library"] }
-  ]
-}
-```
-
-Supported shapes are defined in `validator/lib/rule-policy.mjs`. That runtime
-policy is the source of truth; schema and documentation must stay checked
-against it.
+Monorepos use `packages[]`. `dependencyOwner: "workspace-root"` means the
+workspace root owns dependency intent for that package; otherwise the package
+local `package.json` is the dependency owner.
 
 `worker` is not a semantic profile by itself. A package that declares
 `shape: ["worker"]` must also declare `wranglerPath`; otherwise the scanner
 emits `EFF906` because the runtime role is ambiguous.
 
-`ai` requires `@effect/ai`. Provider execution can be satisfied either by an
-`@effect/ai-*` provider package or by explicit `aiProviderTransports[]` owner
-entries. The second form is for repos that keep provider HTTP/SSE transports as
-terminal adapters while `@effect/ai` owns the agent loop and tool semantics.
-Direct provider SDK dependencies such as `openai` or `@anthropic-ai/sdk` remain
-forbidden.
+## Contract Owners
+
+Growing scanner contract enumerations must live in a checked owner. Unchecked
+prose is not a contract surface.
+
+### Contract Owner: rules
+
+`contracts/rules.json` owns line-regex rules `EFF001`-`EFF032`. Generated docs
+and `validator/rules.jsonl` are derived from this file.
+
+### Contract Owner: signals
+
+`contracts/signals.schema.json` owns signal kinds, required top-level fields,
+fact schemas, `skill_ref`, and `agent_action`.
+
+### Contract Owner: effect-capabilities
+
+`contracts/effect-capabilities.json` owns v3/v4 package requirements, import
+roots, runtime adapters, v4 unstable boundaries, tooling packages, dual-track
+policy, and OTel peer closure policy.
+
+### Contract Owner: scan-evidence
+
+`contracts/scan-evidence.schema.json` owns `ScanEvidenceV1`. The hash-stable
+input subtree is `target + resolution + capabilities + references`; scanner
+provenance is stored separately and only affects `fullHash`.
 
 ## Strict Contract
 
 `--strict` has no fallback:
 
-- missing `.effect-skill.json` -> `EFF000`
-- invalid manifest -> `EFF900`
-- empty shape -> `EFF903`
-- missing `tsc` -> `EFF901`
-- missing `@effect/language-service` dev dependency -> `EFF902`
+### EFF000 missing-manifest
 
-Profile routing also has no fallback. If the scanner cannot resolve an Effect
-major version from package dependencies, `profile.effectVersionsResolution` is
-`unresolved` and version-specific references are omitted. The agent must fix the
-declared dependency owner instead of loading both v3 and v4 references.
+Missing `.effect-skill.json` is an infra error.
 
-`effectMajorPolicy: "dual-track"` is the only manifest escape hatch for a
-package that intentionally publishes both v3 and v4 runtime variants. Without
-that declaration, mixing `effect@4` with v3-era `@effect/*` runtime packages, or
-`effect@3` with v4 `@effect/*` packages, is a package-rule error.
+### EFF900 invalid-manifest
+
+Invalid manifest JSON or schema shape is an infra error.
+
+### EFF901 missing-tsc
+
+Strict mode requires a project-local TypeScript compiler.
+
+### EFF902 missing-effect-language-service
+
+Strict mode requires project-local `@effect/language-service`.
+
+### EFF903 empty-shape
+
+Strict mode requires at least one declared package shape.
+
+### EFF904 lsp-probe-failed
+
+The language-service bridge must prove availability before LSP diagnostics are
+trusted.
+
+Profile routing has no fallback. The resolver separates declared intent from
+installed reality:
+
+- `declaredMajor`: manifest dependency owner -> `package.json` range.
+- `installedMajor`: supported lockfile -> local non-symlink
+  `node_modules/effect/package.json`.
+- comparison: `matched | conflict | declared-only | installed-only |
+  unresolved`.
+
+If `profile.effectVersionsResolution` is `unresolved`, fix dependency ownership
+before semantic review. If it is `conflict`, fix the declared/installed major
+drift before trusting v3-only or v4-only findings.
+
+## Package And Capability Rules
+
+### EFF300 pg-without-effect-sql
+
+`db:pg` must be owned by the Effect SQL capability for the resolved Effect
+major.
+
+### EFF301 mysql-without-effect-sql
+
+`db:mysql` must be owned by the Effect SQL capability for the resolved Effect
+major.
+
+### EFF302 sqlite-without-effect-sql
+
+`db:sqlite` must be owned by the Effect SQL capability for the resolved Effect
+major.
+
+### EFF303 d1-without-effect-sql
+
+`db:d1` must be owned by the Effect SQL/D1 capability for the resolved Effect
+major.
+
+### EFF304 clickhouse-without-effect-sql
+
+`db:clickhouse` must be owned by the Effect SQL capability for the resolved
+Effect major.
+
+### EFF310 http-server-without-effect-platform
+
+HTTP server capability must follow the resolved major contract. v3 requires
+`@effect/platform` plus an adapter; v4 may be satisfied by the v4 `effect`
+unstable HTTP capability.
+
+### EFF311 http-client-without-effect-platform
+
+HTTP client capability must follow the resolved major contract and avoid direct
+HTTP client libraries.
+
+### EFF312 ai-without-effect-ai
+
+AI capability must be owned by `@effect/ai` in v3 or the v4 capability
+contract. Provider SDKs are terminal adapters only.
+
+### EFF313 workflow-without-effect-workflow
+
+Workflow capability must be owned by the resolved Effect workflow contract.
+
+### EFF314 rpc-without-effect-rpc
+
+RPC capability must be owned by the resolved Effect RPC contract.
+
+### EFF315 frontend-without-effect-atom
+
+Frontend React state integration still requires a proven React adapter. v4
+browser runtime proof is not React integration proof.
+
+### EFF320 app-without-effect-opentelemetry
+
+Non-library/non-tool shapes require `@effect/opentelemetry` dependency presence.
+
+### EFF321 missing-effect-vitest
+
+Any non-empty shape requires `@effect/vitest` in `devDependencies`.
+
+### EFF322 mixed-effect-major
+
+A package must not mix v3 and v4 Effect runtime ecosystem packages unless the
+manifest explicitly declares `effectMajorPolicy: "dual-track"`.
+
+### EFF323 v4-opentelemetry-missing-peer
+
+For pinned `effect@4.0.0-beta.84`, v4 `@effect/opentelemetry` requires the full
+`@opentelemetry/*` peer closure declared in `effect-capabilities.json`. When the
+v4 beta or peer closure changes, run `make verify-v4-acceptance` before keeping
+this as a deterministic finding; otherwise the condition is downgraded to the
+`effect-capability-proof-gap` signal.
+
+### EFF324 effect-version-conflict
+
+Declared and installed Effect major versions disagree. The scanner emits this
+finding and pauses version-gated package rules until dependency reality matches
+declared intent.
+
+## Executable And Adapter Rules
+
+### EFF200 effect-test-without-effect-vitest
+
+Effect tests must use `@effect/vitest`.
+
+### EFF400 run-outside-executable-edge
+
+`Effect.run*` is only allowed in manifest-owned executable edges.
+
+### EFF401 edge-without-runmain
+
+Executable edges must use the runtime `runMain` boundary.
+
+### EFF402 platform-constructor-outside-adapter
+
+Platform constructors such as `Response`, `Request`, `WebSocket`, and
+`EventSource` are only allowed in manifest-owned adapters.
+
+### EFF403 namespace-import-effect
+
+Namespace imports from `effect` or `@effect/*` are forbidden.
+
+### EFF404 dynamic-import-require-in-src
+
+`require()` and top-level dynamic `import()` are forbidden in source files.
+
+### EFF905 invalid-runtime-fact-source
+
+Declared runtime fact source could not be read as supported facts.
+
+### EFF906 ambiguous-worker-shape
+
+`shape: ["worker"]` is ambiguous without a runtime fact source such as
+`wranglerPath`.
+
+## LSP Rules
+
+`EFF500`-`EFF503` are emitted only from `@effect/language-service`; the scanner
+does not reimplement Effect typeflow.
 
 ## Agent Workflow
 
 1. Run `effect-skill-scan <repo> --strict --json --profile`.
-2. Treat `findings` as mechanical evidence. Fix the code or add a structured,
+2. Read `profile.effectVersionsResolution`, `profile.effectVersionsProof`, and
+   evidence/resolver output. Do not manually infer version truth from package
+   files when resolver output exists.
+3. Treat `findings` as mechanical evidence. Fix the code or add a structured,
    owned suppression.
-3. If `profile.effectVersionsResolution` is `unresolved`, stop and fix
-   dependency ownership before semantic review.
-4. Treat `signals` as review prompts. Read each referenced file, compare it to
-   `SKILL.md`, and write an explicit judgment.
-5. Do not batch-fix signals by name. A signal is an atomic fact, not a verdict.
+4. If version resolution is `unresolved` or `conflict`, stop and repair the
+   dependency owner or install state before version-gated semantic review.
+5. Treat `signals` as review prompts. Read each `skill_ref`, compare it to the
+   code, and write an explicit judgment.
+6. Do not batch-fix signals by name. A signal is an atomic fact, not a verdict.
 
-`observability-wiring-facts` reports dependency presence plus discovered
-`@effect/opentelemetry` layer factories such as `NodeSdk.layer`, `WebSdk.layer`,
-or `Otlp.layer`. The scanner does not choose the correct runtime SDK for the
-target package; the reviewer must judge the emitted facts against the declared
-runtime shape.
+## Agent Review Signals
 
-`cloudflare-runtime-facts` reports facts read from supported `wranglerPath`
-files: platform,
-compat date, compat flags, entry point, bindings, and configured limits. It must
-not infer Node runtime support from `nodejs_compat`, binding Layer correctness,
-request-scope safety, or any other runtime verdict. Use
-`references/runtime-boundaries.md` and record `validUnder` before claiming
-support.
+### Signal: cloudflare-runtime-facts
+
+Reports supported `wranglerPath` facts: platform, compatibility date, flags,
+entry point, bindings, limits, and source-positioned parse errors.
+
+### Signal: http-api-boundary-file
+
+Reports files containing HttpApi tokens and whether Schema imports are visible.
+
+### Signal: rpc-boundary-file
+
+Reports files containing RPC boundary tokens and whether Schema imports are
+visible.
+
+### Signal: library-exported-effect-file
+
+Reports exported library Effect files and whether span tokens are visible.
+
+### Signal: ai-runtime-facts
+
+Reports AI dependency presence, Effect AI provider packages, manifest-declared
+provider transports, and direct provider SDK dependencies.
+
+### Signal: observability-wiring-facts
+
+Reports dependency presence and discovered `@effect/opentelemetry` layer
+factories such as `NodeSdk.layer`, `WebSdk.layer`, or `Otlp.layer`.
+
+### Signal: resilience-boundary-file
+
+Reports retry/repeat calls, Schedule members, and no semantic judgment about
+whether jitter is required.
+
+### Signal: pubsub-ordering-file
+
+Reports PubSub calls and constructors. Subscriber ordering is reviewed by the
+agent against replay requirements.
+
+### Signal: effect-capability-proof-gap
+
+Reports a v4 beta capability condition that is not backed by the pinned
+acceptance proof. Run the pinned v4 acceptance gate before promoting it back to a
+deterministic finding.
+
+## Evidence Bundle
+
+`effect-skill-scan <repo> --strict --json --profile --evidence <dir>` writes:
+
+- `scan-evidence.json`
+- `input.sha256`
+- `full.sha256`
+
+`input.sha256` covers only `target + resolution + capabilities + references`
+and is the target-state oracle. `full.sha256` covers the whole evidence record,
+including scanner `build-info.json`, and is the audit hash.
+
+## Timings And Cache
+
+`--timings` adds non-deterministic stage timings to the scan result. Timings are
+debug telemetry only; they must not enter `input.sha256` or any other
+hash-stable target-state oracle.
+
+Strict LSP diagnostics remain part of `--strict`. The scanner may cache
+`@effect/language-service` diagnostics by full tsconfig program closure, Effect
+version, TypeScript version, language-service version, package metadata,
+lockfile content, repo-relative program paths, and program file content. It must
+not use mtime as a cache correctness input. Cache provenance is scanner
+provenance: it can affect `full.sha256`, but it must not affect `input.sha256`.
+
+The LSP mapping proof guards rename drift for diagnostics the scanner maps into
+EFF500-EFF503. It does not claim full coverage of every diagnostic currently
+emitted by `@effect/language-service`; unmapped diagnostics are signal candidates
+for future rule graduation, not current scanner failures.
 
 ## Suppression
 

@@ -3,20 +3,23 @@ import { codeTokenText } from "./code-view.js"
 import { cloudflareRuntimeFacts } from "./runtime-facts.js"
 import { astFactsForFile } from "./ast-facts.js"
 import { assertRuntimeFacts, compileContractValidators, signalDefinitionsByKind } from "./contract-validation.js"
+import { otelPeerClosureForEffectMajor, otelPeerClosurePolicyForEffectMajor } from "./effect-capabilities.js"
+import { otelPeerClosureIsDeterministic } from "./package-rules.js"
+import { effectVersionsFromResolution, packageResolution, profileVersionProof, profileVersionResolution, safePackageMajor } from "./resolver.js"
 
-const ALWAYS_REFERENCES = [
+export const ALWAYS_REFERENCES = [
   "references/generated/rules-summary.md",
   "references/generated/checklist.md",
   "references/scanner-manifest.md",
   "references/language-service.md",
 ]
 
-const VERSION_REFERENCES = {
+export const VERSION_REFERENCES = {
   3: "references/versions/v3.md",
   4: "references/versions/v4.md",
 }
 
-const PROFILE_REFERENCES = {
+export const PROFILE_REFERENCES = {
   core: "references/profiles/core.md",
   frontend: "references/profiles/frontend.md",
   node: "references/profiles/node.md",
@@ -26,6 +29,30 @@ const PROFILE_REFERENCES = {
   rpc: "references/profiles/rpc.md",
   ai: "references/effect-ai.md",
   workflow: "references/workflow.md",
+}
+
+export const ALWAYS_REFERENCE_ROUTES = [
+  { owner: "profile:always:rules-summary", ref: "references/generated/rules-summary.md §Generated Rule Summary" },
+  { owner: "profile:always:checklist", ref: "references/generated/checklist.md §Generated Delivery Checklist" },
+  { owner: "profile:always:scanner-manifest", ref: "references/scanner-manifest.md §Scanner v2 Manifest And Agent Workflow" },
+  { owner: "profile:always:language-service", ref: "references/language-service.md §Reference: `@effect/language-service` — LSP 诊断与 Agent 自审" },
+]
+
+export const VERSION_REFERENCE_ROUTES = {
+  3: { owner: "version:v3", ref: "references/versions/v3.md §Effect v3 Notes" },
+  4: { owner: "version:v4", ref: "references/versions/v4.md §Effect v4 Notes" },
+}
+
+export const PROFILE_REFERENCE_ROUTES = {
+  core: { owner: "profile:core", ref: "references/profiles/core.md §Profile: core" },
+  frontend: { owner: "profile:frontend", ref: "references/profiles/frontend.md §Profile: frontend" },
+  node: { owner: "profile:node", ref: "references/profiles/node.md §Profile: node" },
+  "http-client": { owner: "profile:http-client", ref: "references/profiles/http-client.md §Profile: http-client" },
+  "http-server": { owner: "profile:http-server", ref: "references/profiles/http-server.md §Profile: http-server" },
+  db: { owner: "profile:db", ref: "references/profiles/db.md §Profile: db" },
+  rpc: { owner: "profile:rpc", ref: "references/profiles/rpc.md §Profile: rpc" },
+  ai: { owner: "profile:ai", ref: "references/effect-ai.md §Reference: `@effect/ai` — Provider-agnostic LLM 与 Agentic Workflows" },
+  workflow: { owner: "profile:workflow", ref: "references/workflow.md §Reference: `@effect/workflow` and `@effect/cluster`" },
 }
 
 const SHAPE_PROFILES = {
@@ -46,15 +73,16 @@ const SHAPE_PROFILES = {
 const SIGNAL_VALIDATORS = compileContractValidators()
 const SIGNAL_DEFINITIONS = signalDefinitionsByKind(SIGNAL_VALIDATORS.signalsContract)
 
-export function buildProfile(root, manifest, files, lsp) {
+export function buildProfile(root, manifest, files, lsp, scanState = null) {
   const activeProfiles = activeProfilesFor(manifest)
-  const effectVersions = effectVersionsFor(manifest)
-  const effectVersionsResolution = effectVersions.length > 0 ? "manifest" : "unresolved"
+  const effectVersions = effectVersionsFromResolution(scanState)
+  const effectVersionsResolution = profileVersionResolution(scanState)
   return {
     manifestPath: manifest ? ".effect-skill.json" : null,
     activeProfiles,
     effectVersions,
     effectVersionsResolution,
+    effectVersionsProof: profileVersionProof(scanState),
     requiredReferences: requiredReferencesFor(activeProfiles, effectVersions, manifest),
     packages: manifest?.packages.map((pkg) => ({
       path: pkg.path,
@@ -113,7 +141,7 @@ export function requiredReferencesFor(activeProfiles, effectVersions, manifest =
   return [...references].sort()
 }
 
-export function buildSignals(root, manifest, files) {
+export function buildSignals(root, manifest, files, scanState = null) {
   const signals = []
   if (!manifest) return signals
   const emit = (kind, partial) => {
@@ -193,6 +221,24 @@ export function buildSignals(root, manifest, files) {
     }
   }
   for (const pkg of manifest.packages) {
+    const resolved = packageResolution(scanState, pkg.path)
+    const effectMajor = safePackageMajor(resolved)
+    const missingOtelPeers = effectMajor === 4 && Boolean(pkg.deps["@effect/opentelemetry"])
+      ? otelPeerClosureForEffectMajor(effectMajor).filter((name) => !pkg.deps[name])
+      : []
+    if (missingOtelPeers.length > 0 && !otelPeerClosureIsDeterministic(resolved, effectMajor)) {
+      const policy = otelPeerClosurePolicyForEffectMajor(effectMajor)
+      emit("effect-capability-proof-gap", {
+        package: pkg.path,
+        facts: {
+          capability: "v4-otel-peer-closure",
+          missingPeers: missingOtelPeers,
+          declaredEffectVersions: (resolved?.declaredMajor?.candidates ?? []).filter((candidate) => candidate.packageName === "effect").map((candidate) => candidate.versionRange).sort(),
+          installedEffectVersions: (resolved?.installedMajor?.candidates ?? []).filter((candidate) => candidate.packageName === "effect" && candidate.versionRange).map((candidate) => candidate.versionRange).sort(),
+          failureMode: policy?.failureMode ?? "downgrade-to-signal-if-peer-closure-unproven",
+        },
+      })
+    }
     if (pkg.shape.includes("ai")) {
       const effectAiProviderPackages = Object.keys(pkg.deps).filter((name) => name.startsWith("@effect/ai-")).sort()
       emit("ai-runtime-facts", {

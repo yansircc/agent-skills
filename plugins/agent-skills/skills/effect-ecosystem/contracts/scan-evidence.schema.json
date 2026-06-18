@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://effect-ecosystem-skill.local/scan-evidence.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "target", "resolution", "capabilities", "references", "scanner"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "manifestPath", "hostTooling", "generatedPaths", "packages"],
+      "properties": {
+        "root": { "const": "." },
+        "manifestPath": { "type": ["string", "null"] },
+        "hostTooling": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pathOwner" }
+        },
+        "generatedPaths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pathOwner" }
+        },
+        "packages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "shape", "dependencyOwner", "dependencyRoot"],
+            "properties": {
+              "path": { "type": "string" },
+              "shape": { "type": "array", "items": { "type": "string" } },
+              "dependencyOwner": { "type": "string" },
+              "dependencyRoot": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "resolution": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["effect", "packages"],
+      "properties": {
+        "effect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["comparison", "majors"],
+          "properties": {
+            "comparison": { "enum": ["matched", "conflict", "declared-only", "installed-only", "unresolved"] },
+            "majors": { "type": "array", "items": { "enum": [3, 4] } }
+          }
+        },
+        "packages": { "type": "array" }
+      }
+    },
+    "capabilities": { "type": "object" },
+    "references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "scanner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["buildInfo", "lsp"],
+      "properties": {
+        "buildInfo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "gitCommit", "dirty", "buildId", "sourceRootRelative"],
+          "properties": {
+            "schemaVersion": { "const": 1 },
+            "gitCommit": { "type": ["string", "null"] },
+            "dirty": { "type": ["boolean", "null"] },
+            "buildId": { "type": ["string", "null"] },
+            "sourceRootRelative": { "type": ["string", "null"] }
+          }
+        },
+        "lsp": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["available", "tscVersion", "languageServiceVersion", "cache"],
+          "properties": {
+            "available": { "type": "boolean" },
+            "tscVersion": { "type": ["string", "null"] },
+            "languageServiceVersion": { "type": ["string", "null"] },
+            "cache": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "required": ["status", "hit", "key", "fileCount"],
+              "properties": {
+                "status": { "type": "string" },
+                "hit": { "type": "boolean" },
+                "key": { "type": ["string", "null"] },
+                "fileCount": { "type": "number" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "pathOwner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "owner", "reason"],
+      "properties": {
+        "path": { "type": "string" },
+        "owner": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    }
+  }
+}

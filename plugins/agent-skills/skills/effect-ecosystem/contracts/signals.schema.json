@@ -169,6 +169,33 @@
           }
         }
       }
+    },
+    {
+      "kind": "effect-capability-proof-gap",
+      "requiredTopLevel": ["package"],
+      "skill_ref": "references/versions/v4.md §v4 OTel Peer Closure",
+      "agent_action": "Treat this as a v4 beta proof gap: run the pinned v4 acceptance gate before promoting the peer closure to a deterministic finding.",
+      "factsSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["capability", "missingPeers", "declaredEffectVersions", "installedEffectVersions", "failureMode"],
+        "properties": {
+          "capability": { "const": "v4-otel-peer-closure" },
+          "missingPeers": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "declaredEffectVersions": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "installedEffectVersions": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "failureMode": { "const": "downgrade-to-signal-if-peer-closure-unproven" }
+        }
+      }
     }
   ]
 }

@@ -17,9 +17,9 @@
 {"id":"EFF014","name":"import-tanstack-query","pattern":"from\\s+['\"]@tanstack/react-query['\"]","message":"禁用 @tanstack/react-query。改用 effect-atom (@effect-atom/atom-react) + Result 状态机"}
 {"id":"EFF015","name":"import-zustand","pattern":"from\\s+['\"]zustand","message":"禁用 zustand。改用 effect-atom (Atom.make)"}
 {"id":"EFF016","name":"import-jotai","pattern":"from\\s+['\"]jotai","message":"禁用 jotai。改用 effect-atom"}
-{"id":"EFF017","name":"import-react-hook-form","pattern":"from\\s+['\"]react-hook-form['\"]","message":"禁用 react-hook-form。改用 @lucas-barake/effect-form","ref":"references/effect-form.md"}
-{"id":"EFF018","name":"import-formik","pattern":"from\\s+['\"]formik['\"]","message":"禁用 formik。改用 @lucas-barake/effect-form","ref":"references/effect-form.md"}
-{"id":"EFF019","name":"import-tanstack-form","pattern":"from\\s+['\"]@tanstack/react-form['\"]","message":"禁用 @tanstack/react-form。改用 @lucas-barake/effect-form","ref":"references/effect-form.md"}
+{"id":"EFF017","name":"import-react-hook-form","pattern":"from\\s+['\"]react-hook-form['\"]","message":"禁用 react-hook-form。改用 @lucas-barake/effect-form","ref":"references/effect-form.md §Reference: `@lucas-barake/effect-form` 最佳实践指南"}
+{"id":"EFF018","name":"import-formik","pattern":"from\\s+['\"]formik['\"]","message":"禁用 formik。改用 @lucas-barake/effect-form","ref":"references/effect-form.md §Reference: `@lucas-barake/effect-form` 最佳实践指南"}
+{"id":"EFF019","name":"import-tanstack-form","pattern":"from\\s+['\"]@tanstack/react-form['\"]","message":"禁用 @tanstack/react-form。改用 @lucas-barake/effect-form","ref":"references/effect-form.md §Reference: `@lucas-barake/effect-form` 最佳实践指南"}
 {"id":"EFF020","name":"import-node-fs","pattern":"from\\s+['\"](?:node:)?fs(?:/promises)?['\"]","message":"禁用 node 原生 fs。改用 @effect/platform/FileSystem (Context 注入)"}
 {"id":"EFF021","name":"import-node-path","pattern":"from\\s+['\"](?:node:)?path['\"]","message":"禁用 node 原生 path。改用 @effect/platform/Path"}
 {"id":"EFF022","name":"set-timeout","pattern":"\\bsetTimeout\\s*\\(","message":"禁用 setTimeout。改用 Effect.sleep(Duration 字面量)"}
@@ -29,7 +29,7 @@
 {"id":"EFF026","name":"date-now","pattern":"\\bDate\\.now\\s*\\(","message":"业务代码禁用 Date.now()。改用 Clock.currentTimeMillis (可测试)"}
 {"id":"EFF027","name":"process-env","pattern":"\\bprocess\\.env\\.","message":"禁止直读 process.env。改用 Config.string / Config.redacted + Layer 注入"}
 {"id":"EFF028","name":"import-node-cron","pattern":"from\\s+['\"]node-cron['\"]","message":"禁用 node-cron。改用 Schedule.cron(\"M H D M W\") + Effect.repeat"}
-{"id":"EFF029","name":"import-trpc","pattern":"from\\s+['\"]@trpc/","message":"禁用 trpc。改用 @effect/rpc (Schema 化请求/响应/错误)","ref":"references/sql-and-rpc.md"}
-{"id":"EFF030","name":"import-prisma","pattern":"from\\s+['\"]@prisma/client['\"]","message":"禁用 prisma。改用 @effect/sql-* 适配器 + SqlClient + Migrator","ref":"references/sql-and-rpc.md"}
+{"id":"EFF029","name":"import-trpc","pattern":"from\\s+['\"]@trpc/","message":"禁用 trpc。改用 @effect/rpc (Schema 化请求/响应/错误)","ref":"references/sql-and-rpc.md §第二部分：@effect/rpc"}
+{"id":"EFF030","name":"import-prisma","pattern":"from\\s+['\"]@prisma/client['\"]","message":"禁用 prisma。改用 @effect/sql-* 适配器 + SqlClient + Migrator","ref":"references/sql-and-rpc.md §第一部分：@effect/sql"}
 {"id":"EFF031","name":"import-moment-like","severity":"warning","pattern":"from\\s+['\"](?:moment|dayjs|date-fns)","message":"避免 moment/dayjs/date-fns。改用 effect/DateTime (带时区)"}
 {"id":"EFF032","name":"new-date","severity":"warning","pattern":"\\bnew\\s+Date\\s*\\(","message":"业务代码避免 new Date()。读时间用 Clock,日历计算用 DateTime;存时间戳用 number/ISO string"}

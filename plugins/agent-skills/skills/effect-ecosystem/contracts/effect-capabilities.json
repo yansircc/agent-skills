@@ -3,12 +3,31 @@
   "$id": "https://effect-ecosystem-skill.local/effect-capabilities.json",
   "schemaVersion": 1,
   "toolingPackages": [
-    "@effect/language-service"
+    "@effect/language-service",
+    "@effect/vitest"
   ],
   "dualTrackManifestPolicy": {
     "field": "effectMajorPolicy",
     "value": "dual-track"
   },
+  "references": [
+    {
+      "owner": "Contract Owner: effect-capabilities",
+      "ref": "references/scanner-manifest.md §Contract Owner: effect-capabilities"
+    },
+    {
+      "owner": "Capability: v3",
+      "ref": "references/versions/v3.md §Effect v3 Notes"
+    },
+    {
+      "owner": "Capability: v4",
+      "ref": "references/versions/v4.md §Effect v4 Notes"
+    },
+    {
+      "owner": "Capability: v4-otel-peer-closure",
+      "ref": "references/versions/v4.md §v4 OTel Peer Closure"
+    }
+  ],
   "versions": {
     "v3": {
       "effectMajor": 3,
@@ -190,7 +209,12 @@
         "@opentelemetry/sdk-trace-node",
         "@opentelemetry/sdk-trace-web",
         "@opentelemetry/semantic-conventions"
-      ]
+      ],
+      "otelPeerClosurePolicy": {
+        "pinnedEffectVersion": "4.0.0-beta.84",
+        "stability": "beta-pinned",
+        "failureMode": "downgrade-to-signal-if-peer-closure-unproven"
+      }
     }
   }
 }

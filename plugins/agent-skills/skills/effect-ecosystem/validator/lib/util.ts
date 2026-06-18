@@ -28,18 +28,24 @@ export function findUp(name, start) {
 
 export function walkFiles(root, options: any = {}) {
   const out = []
+  const absoluteRoot = resolve(root)
   const ignoreDirs = new Set(options.ignoreDirs ?? [
     ".git",
     ".cst",
     "node_modules",
+    // Scanner build outputs. `dist` is retained as a legacy ignore so old
+    // installed artifacts do not become target source.
     "dist",
+    "dist-dev",
+    "dist-installed",
     "build",
     ".next",
     "coverage",
     "out",
   ])
+  const ignoreRelativeDirs = new Set((options.ignoreRelativeDirs ?? []).map((path) => toPosix(path).replace(/\/+$/, "")))
   const include = options.include ?? ((file) => TEXT_EXTENSIONS.has(extname(file)))
-  visit(resolve(root))
+  visit(absoluteRoot)
   return out
 
   function visit(path) {
@@ -47,6 +53,8 @@ export function walkFiles(root, options: any = {}) {
     if (stat.isDirectory()) {
       const base = path.split(sep).at(-1)
       if (ignoreDirs.has(base)) return
+      const relativeDir = toPosix(relative(absoluteRoot, path))
+      if (relativeDir && ignoreRelativeDirs.has(relativeDir)) return
       for (const entry of readdirSync(path)) visit(resolve(path, entry))
       return
     }

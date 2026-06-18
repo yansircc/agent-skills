@@ -6,6 +6,11 @@ import { mkdtempSync } from "node:fs"
 import { runScan } from "./scanner.js"
 import { RULES } from "./rule-policy.js"
 import { compileContractValidators } from "./contract-validation.js"
+import { validateReferenceRouting } from "./reference-routing.js"
+import { sha256, stableJson } from "./evidence.js"
+import { collectSourceFiles } from "./file-classifier.js"
+import { LSP_DIAGNOSTIC_MAP, scanLspDiagnostics } from "./lsp-bridge.js"
+import { loadManifest } from "./manifest.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const CONFIG_PATH = resolve(__dirname, "..", "fixtures", "fixtures.config.json")
@@ -14,11 +19,14 @@ const INTERNAL_SUITES = [
   "policy-docs-schema-sync",
   "fixture-coverage",
   "lsp-no-reimplementation",
+  "lsp-diagnostic-mapping",
+  "lsp-cache",
+  "timings-output",
   "profile-manifest-one-truth",
   "signals-no-semantic-verdicts",
   "runtime-facts-schema",
   "signal-contract",
-  "signal-ref",
+  "reference-routing",
   "effect-capabilities",
 ]
 
@@ -36,6 +44,7 @@ export function runSelfTest(options: any = {}) {
     failures,
     summary: {
       cases: selectedCases(config, options).length,
+      internalChecks: selectedInternalSuites(options).length,
       failures: failures.length,
     },
   }
@@ -50,11 +59,13 @@ function runCases(config: any, options: any) {
       linkFixtureNodeModules(root)
       const rulesPath = testCase.rulesJsonl ? resolve(root, "fixture-rules.jsonl") : undefined
       if (testCase.rulesJsonl) writeFileSync(rulesPath, testCase.rulesJsonl)
+      const evidenceDir = testCase.expectEvidenceHashAxes ? resolve(root, ".scan-evidence") : undefined
       const result = runScan(root, {
         strict: Boolean(testCase.strict),
         profile: Boolean(testCase.profile),
         failOnSuppressionDrift: Boolean(testCase.failOnSuppressionDrift),
         rulesPath,
+        evidenceDir,
       })
       const exit = result.summary.errors > 0 ? 1 : 0
       if (exit !== testCase.expectExit) {
@@ -88,6 +99,9 @@ function runCases(config: any, options: any) {
       }
       if (testCase.expectEffectVersionsResolution && result.profile?.effectVersionsResolution !== testCase.expectEffectVersionsResolution) {
         failures.push(`${testCase.name}: expected effectVersionsResolution ${testCase.expectEffectVersionsResolution}, got ${result.profile?.effectVersionsResolution}`)
+      }
+      if (testCase.expectEffectVersionsProof !== undefined && result.profile?.effectVersionsProof !== testCase.expectEffectVersionsProof) {
+        failures.push(`${testCase.name}: expected effectVersionsProof ${testCase.expectEffectVersionsProof}, got ${result.profile?.effectVersionsProof}`)
       }
       for (const reference of testCase.expectRequiredReferences ?? []) {
         if (!result.profile?.requiredReferences?.includes(reference)) {
@@ -139,12 +153,52 @@ function runCases(config: any, options: any) {
         const validation = compileContractValidators().validateSignal(signal)
         if (!validation.ok) failures.push(`${testCase.name}: signal contract rejected ${signal.kind}: ${validation.message}`)
       }
+      if (testCase.expectEvidenceHashAxes) {
+        failures.push(...validateEvidenceHashAxes(testCase, root, result, rulesPath))
+      }
     } catch (error) {
       failures.push(`${testCase.name}: ${error.stack ?? error.message}`)
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
   }
+  return failures
+}
+
+function validateEvidenceHashAxes(testCase, root, result, rulesPath) {
+  const failures = []
+  const evidencePath = resolve(root, ".scan-evidence", "scan-evidence.json")
+  const inputHashPath = resolve(root, ".scan-evidence", "input.sha256")
+  const fullHashPath = resolve(root, ".scan-evidence", "full.sha256")
+  const evidence = JSON.parse(readFileSync(evidencePath, "utf8"))
+  const inputHash = readFileSync(inputHashPath, "utf8").trim()
+  const fullHash = readFileSync(fullHashPath, "utf8").trim()
+  const targetInput = {
+    target: evidence.target,
+    resolution: evidence.resolution,
+    capabilities: evidence.capabilities,
+    references: evidence.references,
+  }
+  if (sha256(stableJson(targetInput)) !== inputHash) failures.push(`${testCase.name}: inputHash does not match stable target subtree`)
+  const scannerChanged = structuredClone(evidence)
+  scannerChanged.scanner.buildInfo.buildId = `${scannerChanged.scanner.buildInfo.buildId}:changed`
+  if (sha256(stableJson(scannerChanged)) === fullHash) failures.push(`${testCase.name}: fullHash ignored scanner build-info`)
+  if (sha256(stableJson({
+    target: scannerChanged.target,
+    resolution: scannerChanged.resolution,
+    capabilities: scannerChanged.capabilities,
+    references: scannerChanged.references,
+  })) !== inputHash) failures.push(`${testCase.name}: inputHash changed when scanner build-info changed`)
+
+  const repeatDir = resolve(root, ".scan-evidence-repeat")
+  const repeat = runScan(root, {
+    strict: Boolean(testCase.strict),
+    profile: Boolean(testCase.profile),
+    failOnSuppressionDrift: Boolean(testCase.failOnSuppressionDrift),
+    rulesPath,
+    evidenceDir: repeatDir,
+  })
+  if (repeat.evidence?.inputHash !== result.evidence?.inputHash) failures.push(`${testCase.name}: repeated evidence inputHash changed`)
   return failures
 }
 
@@ -179,6 +233,11 @@ function selectedCases(config: any, options: any) {
   return config.cases.filter((testCase) => testCase.suites.includes(options.suite))
 }
 
+function selectedInternalSuites(options: any) {
+  if (!options.suite) return INTERNAL_SUITES
+  return INTERNAL_SUITES.includes(options.suite) ? [options.suite] : []
+}
+
 function shouldRunCaseSuite(suite: string) {
   return !INTERNAL_SUITES.includes(suite)
 }
@@ -197,6 +256,7 @@ function runInternalSuiteChecks(config: any, options: any) {
     if (!existsSync(resolve(__dirname, "..", "..", "references", "runtime-boundaries.md"))) failures.push("policy-docs-schema-sync: missing references/runtime-boundaries.md")
     if (!existsSync(resolve(__dirname, "..", "..", "contracts", "runtime-facts.schema.json"))) failures.push("policy-docs-schema-sync: missing contracts/runtime-facts.schema.json")
     if (!existsSync(resolve(__dirname, "..", "..", "contracts", "evidence-schema.json"))) failures.push("policy-docs-schema-sync: missing contracts/evidence-schema.json")
+    if (!existsSync(resolve(__dirname, "..", "..", "contracts", "scan-evidence.schema.json"))) failures.push("policy-docs-schema-sync: missing contracts/scan-evidence.schema.json")
   }
   if (!suite || suite === "fixture-coverage") {
     const covered = new Set(config.cases.flatMap((testCase) => testCase.expectRules ?? []))
@@ -209,6 +269,15 @@ function runInternalSuiteChecks(config: any, options: any) {
     for (const forbidden of ["Effect.log", "Effect.gen(function", "Layer.provide"]) {
       if (source.includes(forbidden)) failures.push(`lsp-no-reimplementation: bridge contains ${forbidden}`)
     }
+  }
+  if (!suite || suite === "lsp-diagnostic-mapping") {
+    failures.push(...validateLspDiagnosticMapping(config))
+  }
+  if (!suite || suite === "lsp-cache") {
+    failures.push(...validateLspCache())
+  }
+  if (!suite || suite === "timings-output") {
+    failures.push(...validateTimingsOutput())
   }
   if (!suite || suite === "profile-manifest-one-truth") {
     if (!/manifest\??\.packages\.map/.test(readFileSync(resolve(__dirname, "profile.js"), "utf8"))) {
@@ -224,11 +293,100 @@ function runInternalSuiteChecks(config: any, options: any) {
   if (!suite || suite === "signal-contract") {
     failures.push(...validateSignalContract())
   }
-  if (!suite || suite === "signal-ref") {
-    failures.push(...validateSignalRefs(config))
+  if (!suite || suite === "reference-routing") {
+    failures.push(...validateReferenceRouting(process.cwd()))
   }
   if (!suite || suite === "effect-capabilities") {
     failures.push(...validateEffectCapabilitiesContract())
+  }
+  return failures
+}
+
+function validateLspCache() {
+  const failures = []
+  const root = mkdtempSync(resolve(tmpdir(), "effect-skill-lsp-cache-"))
+  const cacheRoot = mkdtempSync(resolve(tmpdir(), "effect-skill-cache-"))
+  const previousCache = process.env.EFFECT_SKILL_CACHE_DIR
+  process.env.EFFECT_SKILL_CACHE_DIR = cacheRoot
+  try {
+    writeFiles(root, {
+      ".effect-skill.json": "{\"shape\":[\"library\"]}",
+      "package.json": "{\"type\":\"module\",\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\",\"typescript\":\"6.0.3\"}}",
+      "tsconfig.json": "{\"compilerOptions\":{\"target\":\"ES2022\",\"module\":\"NodeNext\",\"moduleResolution\":\"NodeNext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":true},\"include\":[\"src/**/*.ts\"]}",
+      "src/floating-effect.ts": "import { Effect } from \"effect\"\nEffect.log(\"x\")\n",
+    })
+    linkFixtureNodeModules(root)
+    const first = runScan(root, { strict: true, timings: true, evidenceDir: resolve(root, ".evidence-miss") })
+    const second = runScan(root, { strict: true, timings: true, evidenceDir: resolve(root, ".evidence-hit") })
+    if (!first.findings.some((finding) => finding.ruleId === "EFF500")) failures.push("lsp-cache: first run missing EFF500")
+    if (!second.findings.some((finding) => finding.ruleId === "EFF500")) failures.push("lsp-cache: cached run missing EFF500")
+    if (first.timings?.lspCache?.hit !== false) failures.push("lsp-cache: first run should miss cache")
+    if (second.timings?.lspCache?.hit !== true) failures.push("lsp-cache: second run should hit cache")
+    if (first.timings?.stages?.strictLsp === undefined) failures.push("lsp-cache: first run missing strictLsp timing")
+    if (second.timings?.stages?.strictLsp === undefined) failures.push("lsp-cache: second run missing strictLsp timing")
+    const missEvidence = JSON.parse(readFileSync(resolve(root, ".evidence-miss", "scan-evidence.json"), "utf8"))
+    const hitEvidence = JSON.parse(readFileSync(resolve(root, ".evidence-hit", "scan-evidence.json"), "utf8"))
+    if (missEvidence.scanner.lsp.cache?.hit !== false) failures.push("lsp-cache: miss evidence missing cache provenance")
+    if (hitEvidence.scanner.lsp.cache?.hit !== true) failures.push("lsp-cache: hit evidence missing cache provenance")
+    if (first.evidence?.inputHash !== second.evidence?.inputHash) failures.push("lsp-cache: cache hit changed inputHash")
+    if (first.evidence?.fullHash === second.evidence?.fullHash) failures.push("lsp-cache: cache provenance did not affect fullHash")
+    writeFileSync(resolve(root, "src/floating-effect.ts"), "export const x = 1\n")
+    const changed = runScan(root, { strict: true, timings: true })
+    if (changed.timings?.lspCache?.hit !== false) failures.push("lsp-cache: source content change should miss cache")
+    if (changed.timings?.lspCache?.key === first.timings?.lspCache?.key) failures.push("lsp-cache: source content change reused cache key")
+    if (changed.findings.some((finding) => finding.ruleId === "EFF500")) failures.push("lsp-cache: source content change returned stale EFF500")
+  } finally {
+    if (previousCache === undefined) delete process.env.EFFECT_SKILL_CACHE_DIR
+    else process.env.EFFECT_SKILL_CACHE_DIR = previousCache
+    rmSync(root, { recursive: true, force: true })
+    rmSync(cacheRoot, { recursive: true, force: true })
+  }
+  return failures
+}
+
+function validateTimingsOutput() {
+  const failures = []
+  const root = mkdtempSync(resolve(tmpdir(), "effect-skill-timings-"))
+  try {
+    writeFiles(root, {
+      ".effect-skill.json": "{\"shape\":[\"library\"]}",
+      "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+      "src/a.ts": "export const x = 1\n",
+    })
+    linkFixtureNodeModules(root)
+    const without = runScan(root, { profile: true })
+    if (without.timings) failures.push("timings-output: timings emitted without opt-in")
+    const withTimings = runScan(root, { profile: true, timings: true })
+    if (!Object.prototype.hasOwnProperty.call(withTimings.timings?.stages ?? {}, "collectSourceFiles")) failures.push("timings-output: missing collectSourceFiles timing")
+    if (withTimings.timings?.totalMs === undefined) failures.push("timings-output: missing totalMs")
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+  return failures
+}
+
+function validateLspDiagnosticMapping(config) {
+  const failures = []
+  const requiredNames = new Set(LSP_DIAGNOSTIC_MAP.filter((item: any) => item.proofRequired !== false).map((item) => item.name))
+  const observedNames = new Set()
+  for (const testCase of config.cases.filter((item) => item.suites.includes("lsp-diagnostics"))) {
+    const root = mkdtempSync(resolve(tmpdir(), "effect-skill-lsp-map-"))
+    try {
+      writeFiles(root, testCase.files)
+      linkFixtureNodeModules(root)
+      const manifest = loadManifest(root, { strict: Boolean(testCase.strict) }).manifest
+      const files = collectSourceFiles(root, manifest)
+      const lsp = scanLspDiagnostics(root, files, { strict: true })
+      for (const name of lsp.diagnosticNames ?? []) observedNames.add(name)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }
+  for (const name of requiredNames) {
+    if (!observedNames.has(name)) failures.push(`lsp-diagnostic-mapping: ${name} is mapped but not proven by current LSP fixtures`)
+  }
+  for (const ruleId of ["EFF500", "EFF501", "EFF502", "EFF503"]) {
+    if (!LSP_DIAGNOSTIC_MAP.some((item) => item.ruleId === ruleId)) failures.push(`lsp-diagnostic-mapping: missing ${ruleId}`)
   }
   return failures
 }
@@ -274,32 +432,6 @@ function validateSignalContract() {
   return failures
 }
 
-function validateSignalRefs(config) {
-  const failures = []
-  const validators = compileContractValidators()
-  for (const definition of validators.signalsContract.signals) {
-    if (!referenceExists(definition.skill_ref)) failures.push(`signal-ref: missing declared ${definition.skill_ref}`)
-  }
-  for (const testCase of config.cases.filter((item) => item.profile)) {
-    const root = mkdtempSync(resolve(tmpdir(), "effect-skill-signal-ref-"))
-    try {
-      writeFiles(root, testCase.files)
-      linkFixtureNodeModules(root)
-      const result = runScan(root, {
-        strict: Boolean(testCase.strict),
-        profile: true,
-        failOnSuppressionDrift: Boolean(testCase.failOnSuppressionDrift),
-      })
-      for (const signal of result.signals ?? []) {
-        if (!referenceExists(signal.skill_ref)) failures.push(`signal-ref: missing emitted ${signal.skill_ref}`)
-      }
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
-  }
-  return failures
-}
-
 function validateSignalFactKeys() {
   const failures = []
   const validators = compileContractValidators()
@@ -329,6 +461,9 @@ function validateEffectCapabilitiesContract() {
   for (const ruleId of ["EFF300", "EFF301", "EFF302", "EFF303", "EFF304", "EFF310", "EFF311", "EFF312", "EFF313", "EFF314", "EFF315"]) {
     if (!requirementRuleIds.has(ruleId)) failures.push(`effect-capabilities: missing ${ruleId}`)
   }
+  const v4OtelPolicy = contract.versions.v4.otelPeerClosurePolicy
+  if (v4OtelPolicy?.pinnedEffectVersion !== "4.0.0-beta.84") failures.push("effect-capabilities: v4 OTel peer closure is not pinned to beta.84")
+  if (v4OtelPolicy?.stability !== "beta-pinned") failures.push("effect-capabilities: v4 OTel peer closure is not beta-pinned")
   return failures
 }
 
@@ -374,19 +509,6 @@ function validateRuntimeFactsSchema() {
 
 function validateSuiteExists(config: any, suite: string) {
   return config.requiredSuites.includes(suite) ? [] : [`unknown suite ${suite}`]
-}
-
-function referenceExists(skillRef) {
-  const match = skillRef.match(/^(references\/[^ ]+) §(.+)$/)
-  if (!match) return false
-  const [, file, heading] = match
-  const path = resolve(process.cwd(), file)
-  if (!existsSync(path)) return false
-  const headings = readFileSync(path, "utf8")
-    .split(/\r?\n/)
-    .filter((line) => /^#{1,6}\s+/.test(line))
-    .map((line) => line.replace(/^#{1,6}\s+/, "").trim())
-  return headings.includes(heading)
 }
 
 function factKeys(schema) {

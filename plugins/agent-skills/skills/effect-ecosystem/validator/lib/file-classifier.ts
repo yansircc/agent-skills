@@ -3,10 +3,19 @@ import { matchesAny, readLines, rel, toPosix, walkFiles } from "./util.js"
 import { packageForFile } from "./manifest.js"
 
 export function collectSourceFiles(root, manifest) {
-  return walkFiles(root)
+  return walkFiles(root, { ignoreRelativeDirs: hostToolingPruneDirs(manifest) })
     .filter((file) => !file.endsWith(".d.ts"))
     .map((file) => classifyFile(root, file, manifest))
     .filter((file) => !file.roles.hostTooling)
+}
+
+export function hostToolingPruneDirs(manifest) {
+  const out = []
+  for (const item of manifest?.hostTooling ?? []) {
+    const dir = directoryPrefixGlob(item.path)
+    if (dir) out.push(dir)
+  }
+  return [...new Set(out)].sort()
 }
 
 export function classifyFile(root, file, manifest) {
@@ -38,4 +47,13 @@ export function classifyFile(root, file, manifest) {
     },
     allowedAdapterRules,
   }
+}
+
+function directoryPrefixGlob(glob) {
+  const normalized = toPosix(String(glob ?? "")).replace(/\/+$/, "")
+  const match = normalized.match(/^([^*?[\]{}()!]+)\/\*\*$/)
+  if (!match) return null
+  const prefix = match[1].replace(/\/+$/, "")
+  if (!prefix || prefix === "." || prefix.includes("..")) return null
+  return prefix
 }

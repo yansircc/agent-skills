@@ -26,6 +26,11 @@ export function otelPeerClosureForEffectMajor(major) {
   return version?.otelPeerClosure ?? []
 }
 
+export function otelPeerClosurePolicyForEffectMajor(major) {
+  const version = effectCapabilitiesContract().versions[`v${major}`]
+  return version?.otelPeerClosurePolicy ?? null
+}
+
 export function toolingPackages() {
   return new Set(effectCapabilitiesContract().toolingPackages ?? [])
 }

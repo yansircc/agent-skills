@@ -6,10 +6,12 @@ import { runSelfTest } from "./lib/fixtures.js"
 
 const args = process.argv.slice(2)
 const flags = new Set(args.filter((arg) => arg.startsWith("--")))
-const positional = args.filter((arg) => !arg.startsWith("--"))
+const valueFlags = new Set(["--suite", "--evidence"])
+const positional = args.filter((arg, index) => !arg.startsWith("--") && !valueFlags.has(args[index - 1]))
 const root = resolve(positional[0] ?? process.cwd())
 
 const suite = valueAfter("--suite")
+const evidenceDir = valueAfter("--evidence")
 
 if (flags.has("--self-test")) {
   const result = runSelfTest({
@@ -21,7 +23,7 @@ if (flags.has("--self-test")) {
     for (const failure of result.failures) console.error(`[self-test] ${failure}`)
     process.exit(1)
   }
-  console.log(`[self-test] ok (${result.summary.cases} cases)`)
+  console.log(`[self-test] ok (${result.summary.cases} cases, ${result.summary.internalChecks} internal checks)`)
   process.exit(0)
 }
 
@@ -40,6 +42,8 @@ try {
   result = runScan(root, {
     strict: flags.has("--strict"),
     profile: flags.has("--profile"),
+    timings: flags.has("--timings"),
+    evidenceDir,
     failOnSuppressionDrift: flags.has("--fail-on-suppression-drift"),
   })
 } catch (error) {

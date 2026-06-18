@@ -60,6 +60,14 @@ export function scannerRulesJsonl(registry) {
 
 export function rulesSummaryMarkdown(registry) {
   const rows = registry.rules.map((rule) => `| ${rule.id} | ${rule.name} | ${rule.severity} | ${rule.profiles.join(", ")} | ${ruleText(rule).replaceAll("|", "\\|")} |`)
+  const sections = registry.rules.flatMap((rule) => [
+    `## ${rule.id} ${rule.name}`,
+    "",
+    `Profiles: ${rule.profiles.join(", ")}`,
+    "",
+    `Rule: ${ruleText(rule)}`,
+    "",
+  ])
   return [
     "# Generated Rule Summary",
     "",
@@ -69,6 +77,7 @@ export function rulesSummaryMarkdown(registry) {
     "|---|---|---|---|---|",
     ...rows,
     "",
+    ...sections,
   ].join("\n")
 }
 

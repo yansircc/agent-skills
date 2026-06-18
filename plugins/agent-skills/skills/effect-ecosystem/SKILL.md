@@ -14,12 +14,13 @@ Generated summaries live in `references/generated/rules-summary.md` and
 ## Invariant
 
 One Effect semantic rule has one owner. Do not hand-edit the same rule into
-`SKILL.md`, scanner rules, and checklist text. Update `contracts/rules.json`,
-then run:
+`SKILL.md`, scanner rules, and checklist text. Update the owner contract first:
+`contracts/rules.json`, `contracts/signals.schema.json`, or
+`contracts/effect-capabilities.json`. Then run:
 
 ```bash
 make build
-node dist/scripts/generate-derived-docs.js
+node dist-dev/scripts/generate-derived-docs.js
 ```
 
 Fast fail instead of fallback. If required substrate is missing or ambiguous,
@@ -28,10 +29,10 @@ compatibility guess.
 
 ## Workflow
 
-1. Identify the target Effect version from `package.json`, lockfiles, or local
-   `node_modules/effect/package.json`.
-2. Read the target `.effect-skill.json` and derive the active profiles from
-   `shape` / `packages`.
+1. Read the scanner profile/resolver output for Effect version, proof state,
+   active profiles, required references, and signals.
+2. Read the target `.effect-skill.json` only to understand manifest ownership
+   when the scanner reports a finding or unresolved proof.
 3. Run the scanner:
 
    ```bash
@@ -43,9 +44,9 @@ compatibility guess.
 5. Treat `signals` as agent review prompts. Read the referenced files and make
    a written judgment against the relevant references.
 6. Load only `profile.requiredReferences` from the scanner output. If the field
-   is missing, the installed scanner is stale; run `make install` and `make verify`.
-   If `profile.effectVersionsResolution` is `unresolved`, fix `package.json` or
-   the manifest before continuing.
+   is missing, the installed scanner is stale; run `make install` for release and
+   `make verify`. If `profile.effectVersionsResolution` is `unresolved` or
+   `conflict`, fix declared intent or installed reality before continuing.
 7. If the same friction class lands in project evidence twice, graduate it into
    a skill artifact instead of leaving another project-only note.
 8. Each new spike must name its own invariant; do not reuse an existing
@@ -66,6 +67,8 @@ Existing deep references remain available for API details:
 `references/schema.md`, `references/sql-and-rpc.md`,
 `references/effect-ai.md`, `references/effect-atom.md`,
 `references/effect-form.md`, `references/observability.md`,
+`references/concurrency-primitives.md`, `references/scheduling.md`,
+`references/resource-management.md`, `references/language-service.md`,
 `references/errors-and-layers.md`, `references/testing.md`,
 `references/runtime-boundaries.md`, `references/workflow.md`,
 `references/v4-migration.md`.
@@ -77,8 +80,17 @@ CST store migration for old task graphs: `references/cst-migration.md`.
 For this skill repository:
 
 ```bash
-make install
 make verify
+```
+
+`make install` publishes an immutable `dist-installed/<buildId>/` scanner
+artifact and updates the local bin symlink. Do not run it during development
+unless releasing the scanner.
+
+v4 acceptance is opt-in and intentionally not part of default `make verify`:
+
+```bash
+make verify-v4-acceptance
 ```
 
 For a target project, run its normal tests plus

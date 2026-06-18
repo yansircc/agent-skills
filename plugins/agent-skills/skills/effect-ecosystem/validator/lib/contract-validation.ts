@@ -10,12 +10,14 @@ const SIGNAL_TOP_LEVEL_KEYS = new Set(["kind", "file", "package", "facts", "skil
 export function compileContractValidators(contractsDir = DEFAULT_CONTRACTS_DIR) {
   const runtimeFactsSchema = readJson(resolve(contractsDir, "runtime-facts.schema.json"))
   const evidenceSchema = readJson(resolve(contractsDir, "evidence-schema.json"))
+  const scanEvidenceSchema = readJson(resolve(contractsDir, "scan-evidence.schema.json"))
   const signalsContract = readJson(resolve(contractsDir, "signals.schema.json"))
   const effectCapabilitiesContract = readJson(resolve(contractsDir, "effect-capabilities.json"))
   const ajv = new Ajv2020({ allErrors: true, strict: false })
   ajv.addSchema(runtimeFactsSchema)
   const validateRuntimeFacts = ajv.compile(runtimeFactsSchema)
   const validateEvidence = ajv.compile(evidenceSchema)
+  const validateScanEvidence = ajv.compile(scanEvidenceSchema)
   const validateSignalsContractShape = ajv.compile(signalsContractShapeSchema())
   const validateEffectCapabilitiesShape = ajv.compile(effectCapabilitiesShapeSchema())
   const signalDefinitions = signalDefinitionsByKind(signalsContract)
@@ -29,6 +31,7 @@ export function compileContractValidators(contractsDir = DEFAULT_CONTRACTS_DIR) 
   return {
     validateRuntimeFacts: (value) => validate("runtime-facts", validateRuntimeFacts, value),
     validateEvidence: (value) => validate("evidence", validateEvidence, value),
+    validateScanEvidence: (value) => validate("scan-evidence", validateScanEvidence, value),
     validateSignalContract: (value = signalsContract) => validate("signals", validateSignalsContractShape, value),
     validateEffectCapabilities: (value = effectCapabilitiesContract) => validate("effect-capabilities", validateEffectCapabilitiesShape, value),
     validateSignal: (value) => validateSignalValue(value, signalDefinitions, signalFactValidators),
@@ -165,6 +168,18 @@ function effectCapabilitiesShapeSchema() {
           value: { const: "dual-track" }
         }
       },
+      references: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["owner", "ref"],
+          properties: {
+            owner: { type: "string", minLength: 1 },
+            ref: { type: "string", pattern: "^references/.+ §.+" }
+          }
+        }
+      },
       versions: {
         type: "object",
         required: ["v3", "v4"],
@@ -195,7 +210,17 @@ function versionSchema(major, requirement) {
         minItems: 1,
         items: requirement
       },
-      otelPeerClosure: packageNames()
+      otelPeerClosure: packageNames(),
+      otelPeerClosurePolicy: {
+        type: "object",
+        additionalProperties: false,
+        required: ["pinnedEffectVersion", "stability", "failureMode"],
+        properties: {
+          pinnedEffectVersion: { type: "string", minLength: 1 },
+          stability: { enum: ["beta-pinned"] },
+          failureMode: { const: "downgrade-to-signal-if-peer-closure-unproven" }
+        }
+      }
     }
   }
 }

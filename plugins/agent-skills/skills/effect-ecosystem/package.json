@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "effect-skill-scan": "./dist/validator/scan.js"
+    "effect-skill-scan": "./dist-dev/validator/scan.js"
   },
   "devDependencies": {
     "@effect/language-service": "0.86.2",

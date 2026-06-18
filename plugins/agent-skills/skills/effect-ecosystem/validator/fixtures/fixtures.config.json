@@ -31,6 +31,9 @@
     "lsp-diagnostics",
     "lsp-marker-bypass",
     "lsp-no-reimplementation",
+    "lsp-diagnostic-mapping",
+    "lsp-cache",
+    "timings-output",
     "compiler-diagnostics-boundary",
     "strict-lsp-full",
     "profile-output",
@@ -43,8 +46,10 @@
     "signal-token-view",
     "signals-no-semantic-verdicts",
     "signal-contract",
-    "signal-ref",
+    "reference-routing",
     "effect-capabilities",
+    "version-resolver",
+    "scan-evidence",
     "resilience-signals",
     "pubsub-signals",
     "v4-package-rules",
@@ -71,6 +76,7 @@
     "EFF321",
     "EFF322",
     "EFF323",
+    "EFF324",
     "EFF400",
     "EFF401",
     "EFF402",
@@ -98,7 +104,12 @@
     "resilience-comment-literal-green",
     "pubsub-comment-literal-green",
     "v4-otel-missing-peer-red",
+    "v4-otel-unpinned-peer-gap-signal-green",
     "mixed-v3-v4-package-red",
+    "declared-v3-installed-v4-conflict-red",
+    "declared-only-unsupported-installed-evidence-green",
+    "installed-only-resolution-green",
+    "evidence-hash-axes-green",
     "profile-exit-failing",
     "profile-required-references",
     "profile-version-unresolved-fast-fail",
@@ -373,7 +384,7 @@
       "files": {
         ".effect-skill.json": "{\"packages\":[{\"path\":\"apps/web\",\"shape\":[\"ai\"]}]}",
         "package.json": "{\"dependencies\":{\"@effect/ai\":\"1.0.0\",\"@effect/ai-openai\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
-        "apps/web/package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
+        "apps/web/package.json": "{\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\"}}",
         "apps/web/src/a.ts": "export const x = 1\n"
       },
       "expectExit": 1,
@@ -385,7 +396,7 @@
       "strict": true,
       "files": {
         ".effect-skill.json": "{\"shape\":[\"db:pg\",\"db:mysql\",\"db:sqlite\",\"db:d1\",\"db:clickhouse\",\"http-server\",\"http-client\",\"ai\",\"rpc\",\"frontend\",\"workflow\",\"node\"]}",
-        "package.json": "{\"dependencies\":{\"pg\":\"1.0.0\",\"mysql2\":\"1.0.0\",\"better-sqlite3\":\"1.0.0\",\"@clickhouse/client\":\"1.0.0\",\"express\":\"1.0.0\",\"axios\":\"1.0.0\",\"openai\":\"1.0.0\"},\"devDependencies\":{\"@effect/language-service\":\"1.0.0\"}}",
+        "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\",\"pg\":\"1.0.0\",\"mysql2\":\"1.0.0\",\"better-sqlite3\":\"1.0.0\",\"@clickhouse/client\":\"1.0.0\",\"express\":\"1.0.0\",\"axios\":\"1.0.0\",\"openai\":\"1.0.0\"},\"devDependencies\":{\"@effect/language-service\":\"1.0.0\"}}",
         "src/a.ts": "export const x = 1\n"
       },
       "expectExit": 1,
@@ -397,7 +408,7 @@
       "strict": true,
       "files": {
         ".effect-skill.json": "{\"shape\":[\"node-tool\",\"db:pg\"]}",
-        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
         "src/a.ts": "export const x = 1\n"
       },
       "expectExit": 1,
@@ -734,7 +745,8 @@
       "expectProfile": true,
       "expectActiveProfiles": ["ai", "core", "db", "frontend", "http-server", "node", "rpc", "workflow"],
       "expectEffectVersions": ["v3"],
-      "expectEffectVersionsResolution": "manifest",
+      "expectEffectVersionsResolution": "resolved",
+      "expectEffectVersionsProof": "declared-only",
       "expectRequiredReferences": [
         "references/generated/rules-summary.md",
         "references/generated/checklist.md",
@@ -937,6 +949,29 @@
       "expectRules": ["EFF323"]
     },
     {
+      "name": "v4-otel-unpinned-peer-gap-signal-green",
+      "suites": ["v4-package-rules", "package-presence", "atomic-signals", "red-green-fixtures"],
+      "strict": true,
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"node\"]}",
+        "package.json": "{\"dependencies\":{\"effect\":\"4.0.0-beta.85\",\"@effect/opentelemetry\":\"4.0.0-beta.85\"},\"devDependencies\":{\"@effect/vitest\":\"4.0.0-beta.85\",\"@effect/language-service\":\"0.86.2\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["effect-capability-proof-gap"],
+      "expectSignalFacts": [
+        {
+          "kind": "effect-capability-proof-gap",
+          "facts": {
+            "capability": "v4-otel-peer-closure",
+            "failureMode": "downgrade-to-signal-if-peer-closure-unproven"
+          }
+        }
+      ]
+    },
+    {
       "name": "mixed-v3-v4-package-red",
       "suites": ["v4-package-rules", "package-presence", "fixture-coverage", "evil-fixtures"],
       "strict": true,
@@ -947,6 +982,84 @@
       },
       "expectExit": 1,
       "expectRules": ["EFF322"]
+    },
+    {
+      "name": "declared-v3-installed-v3-verified-green",
+      "suites": ["version-resolver", "profile-output", "profile-facts", "scan-evidence", "red-green-fixtures"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "package-lock.json": "{\"lockfileVersion\":3,\"packages\":{\"node_modules/effect\":{\"version\":\"3.21.2\"}}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectProfile": true,
+      "expectEffectVersions": ["v3"],
+      "expectEffectVersionsResolution": "resolved",
+      "expectEffectVersionsProof": "verified"
+    },
+    {
+      "name": "declared-v3-installed-v4-conflict-red",
+      "suites": ["version-resolver", "package-presence", "fixture-coverage", "evil-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"db:pg\"]}",
+        "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\",\"pg\":\"1.0.0\",\"@effect/opentelemetry\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "package-lock.json": "{\"lockfileVersion\":3,\"packages\":{\"node_modules/effect\":{\"version\":\"4.0.0-beta.84\"}}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF324"],
+      "exact": true
+    },
+    {
+      "name": "declared-only-unsupported-installed-evidence-green",
+      "suites": ["version-resolver", "profile-output", "profile-facts", "red-green-fixtures"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "bun.lock": "# unsupported lockfile shape remains installed-side evidence only\n",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectProfile": true,
+      "expectEffectVersions": ["v3"],
+      "expectEffectVersionsResolution": "resolved",
+      "expectEffectVersionsProof": "declared-only"
+    },
+    {
+      "name": "installed-only-resolution-green",
+      "suites": ["version-resolver", "profile-output", "profile-facts", "red-green-fixtures"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "package-lock.json": "{\"lockfileVersion\":3,\"packages\":{\"node_modules/effect\":{\"version\":\"3.21.2\"}}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectProfile": true,
+      "expectEffectVersions": ["v3"],
+      "expectEffectVersionsResolution": "resolved",
+      "expectEffectVersionsProof": "installed-only"
+    },
+    {
+      "name": "evidence-hash-axes-green",
+      "suites": ["scan-evidence", "version-resolver", "red-green-fixtures"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectEvidenceHashAxes": true
     },
     {
       "name": "workflow-shape-red",

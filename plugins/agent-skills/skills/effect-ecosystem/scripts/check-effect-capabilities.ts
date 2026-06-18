@@ -19,4 +19,12 @@ for (const ruleId of ["EFF300", "EFF301", "EFF302", "EFF303", "EFF304", "EFF310"
   if (!requirementRuleIds.has(ruleId)) throw new Error(`capability contract does not cover ${ruleId}`)
 }
 
+const v4OtelPolicy = contract.versions.v4.otelPeerClosurePolicy
+if (v4OtelPolicy?.pinnedEffectVersion !== "4.0.0-beta.84") {
+  throw new Error("v4 OTel peer closure must stay pinned to effect@4.0.0-beta.84 until refreshed with verify-v4-acceptance")
+}
+if (v4OtelPolicy?.stability !== "beta-pinned") {
+  throw new Error("v4 OTel peer closure policy must declare beta-pinned stability")
+}
+
 console.log(`effect capabilities ok (${requirementRuleIds.size} package rules)`)

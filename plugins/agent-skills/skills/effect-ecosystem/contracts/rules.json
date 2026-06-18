@@ -267,7 +267,7 @@
       "forbid": "禁用 react-hook-form",
       "prefer": "改用 @lucas-barake/effect-form",
       "references": [
-        "references/effect-form.md"
+        "references/effect-form.md §Reference: `@lucas-barake/effect-form` 最佳实践指南"
       ],
       "scanner": {
         "kind": "line-regex",
@@ -284,7 +284,7 @@
       "forbid": "禁用 formik",
       "prefer": "改用 @lucas-barake/effect-form",
       "references": [
-        "references/effect-form.md"
+        "references/effect-form.md §Reference: `@lucas-barake/effect-form` 最佳实践指南"
       ],
       "scanner": {
         "kind": "line-regex",
@@ -301,7 +301,7 @@
       "forbid": "禁用 @tanstack/react-form",
       "prefer": "改用 @lucas-barake/effect-form",
       "references": [
-        "references/effect-form.md"
+        "references/effect-form.md §Reference: `@lucas-barake/effect-form` 最佳实践指南"
       ],
       "scanner": {
         "kind": "line-regex",
@@ -453,7 +453,7 @@
       "forbid": "禁用 trpc",
       "prefer": "改用 @effect/rpc (Schema 化请求/响应/错误)",
       "references": [
-        "references/sql-and-rpc.md"
+        "references/sql-and-rpc.md §第二部分：@effect/rpc"
       ],
       "scanner": {
         "kind": "line-regex",
@@ -470,7 +470,7 @@
       "forbid": "禁用 prisma",
       "prefer": "改用 @effect/sql-* 适配器 + SqlClient + Migrator",
       "references": [
-        "references/sql-and-rpc.md"
+        "references/sql-and-rpc.md §第一部分：@effect/sql"
       ],
       "scanner": {
         "kind": "line-regex",

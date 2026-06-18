@@ -2,13 +2,15 @@ PREFIX ?= $(HOME)/.local
 BIN ?= $(PREFIX)/bin/effect-skill-scan
 CODEX_SKILLS_DIR ?= $(HOME)/.codex/skills
 SKILL_NAME ?= effect-ecosystem
-BUILD_DIR ?= dist
+BUILD_DIR ?= dist-dev
+INSTALL_ROOT ?= dist-installed
 
 .PHONY: build install skill verify verify-v4-acceptance
 
 build:
 	rm -rf "$(BUILD_DIR)"
-	./node_modules/.bin/tsc -p tsconfig.json
+	./node_modules/.bin/tsc -p tsconfig.json --outDir "$(BUILD_DIR)"
+	node "$(BUILD_DIR)/scripts/write-build-info.js" "$(BUILD_DIR)"
 	mkdir -p "$(BUILD_DIR)/validator/fixtures" "$(BUILD_DIR)/references" "$(BUILD_DIR)/contracts/evidence"
 	cp validator/rules.jsonl validator/manifest.schema.json "$(BUILD_DIR)/validator/"
 	cp validator/fixtures/fixtures.config.json "$(BUILD_DIR)/validator/fixtures/"
@@ -17,26 +19,44 @@ build:
 	cp contracts/evidence/*.json "$(BUILD_DIR)/contracts/evidence/"
 	chmod +x "$(BUILD_DIR)/validator/scan.js"
 
-install: build
-	mkdir -p "$(dir $(BIN))"
-	ln -sfn "$(CURDIR)/$(BUILD_DIR)/validator/scan.js" "$(BIN)"
+install:
+	@set -eu; \
+	mkdir -p "$(INSTALL_ROOT)" "$(dir $(BIN))"; \
+	tmp="$(INSTALL_ROOT)/.tmp-install-$$$$"; \
+	rm -rf "$$tmp"; \
+	$(MAKE) build BUILD_DIR="$$tmp"; \
+	build_id=$$(node -e 'const fs=require("fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).buildId)' "$$tmp/build-info.json"); \
+	target="$(INSTALL_ROOT)/$$build_id"; \
+	if [ -e "$$target" ]; then rm -rf "$$tmp"; else mv "$$tmp" "$$target"; fi; \
+	ln -sfn "$(CURDIR)/$$target/validator/scan.js" "$(BIN)"
 
 skill:
 	mkdir -p "$(CODEX_SKILLS_DIR)"
 	ln -sfn "$(CURDIR)" "$(CODEX_SKILLS_DIR)/$(SKILL_NAME)"
 
-verify: build
-	node "$(BUILD_DIR)/scripts/check-registry.js"
-	node "$(BUILD_DIR)/scripts/generate-derived-docs.js" --check
-	node "$(BUILD_DIR)/scripts/check-skill-thin.js"
-	node "$(BUILD_DIR)/scripts/check-profile-routing.js"
-	node "$(BUILD_DIR)/scripts/check-evidence-contracts.js"
-	node "$(BUILD_DIR)/scripts/check-signal-contracts.js"
-	node "$(BUILD_DIR)/scripts/check-effect-capabilities.js"
-	node "$(BUILD_DIR)/scripts/typecheck-snippets.js"
-	node "$(BUILD_DIR)/validator/scan.js" --self-test --exact
-	node "$(BUILD_DIR)/validator/scan.js" --self-test --contract
-	node "$(BUILD_DIR)/validator/scan.js" . --strict --json --profile >/tmp/effect-skill-verify-profile.json
+verify:
+	@set -eu; \
+	snapshot() { target=$$(readlink "$(BIN)" 2>/dev/null || true); if [ -n "$$target" ] && [ -f "$$target" ]; then hash=$$(shasum -a 256 "$$target" | awk '{print $$1}'); else hash="missing"; fi; printf "%s|%s" "$$target" "$$hash"; }; \
+	before=$$(snapshot); \
+	status=0; \
+	{ \
+	$(MAKE) build BUILD_DIR="$(BUILD_DIR)"; \
+	node "$(BUILD_DIR)/scripts/check-registry.js"; \
+	node "$(BUILD_DIR)/scripts/generate-derived-docs.js" --check; \
+	node "$(BUILD_DIR)/scripts/check-skill-thin.js"; \
+	node "$(BUILD_DIR)/scripts/check-profile-routing.js"; \
+	node "$(BUILD_DIR)/scripts/check-evidence-contracts.js"; \
+	node "$(BUILD_DIR)/scripts/check-signal-contracts.js"; \
+	node "$(BUILD_DIR)/scripts/check-effect-capabilities.js"; \
+	node "$(BUILD_DIR)/scripts/check-reference-routing.js"; \
+	node "$(BUILD_DIR)/scripts/typecheck-snippets.js"; \
+	node "$(BUILD_DIR)/validator/scan.js" --self-test --exact; \
+	node "$(BUILD_DIR)/validator/scan.js" --self-test --contract; \
+	node "$(BUILD_DIR)/validator/scan.js" . --strict --json --profile >/tmp/effect-skill-verify-profile.json; \
+	} || status=$$?; \
+	after=$$(snapshot); \
+	if [ "$$before" != "$$after" ]; then echo "installed scanner changed during make verify: $$before -> $$after" >&2; exit 1; fi; \
+	exit "$$status"
 
 verify-v4-acceptance: build
 	node "$(BUILD_DIR)/scripts/verify-v4-acceptance.js"

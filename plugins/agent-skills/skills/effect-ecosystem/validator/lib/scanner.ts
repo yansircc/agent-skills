@@ -10,57 +10,63 @@ import { scanFilePairRules } from "./file-pair.js"
 import { applySuppressions, validateSuppressionDrift } from "./suppression.js"
 import { runLocalTsc, strictPrerequisites } from "./strict-gate.js"
 import { scanLspDiagnostics } from "./lsp-bridge.js"
-import { buildProfile, buildSignals } from "./profile.js"
+import { activeProfilesFor, buildProfile, buildSignals } from "./profile.js"
 import { scanRuntimeFactRules } from "./runtime-facts.js"
+import { resolveScanState } from "./resolver.js"
+import { writeScanEvidence } from "./evidence.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const RULES_PATH = resolve(__dirname, "..", "rules.jsonl")
 
 export function runScan(inputRoot: string, options: any = {}) {
+  const timings = createTimings()
   const root = resolve(inputRoot)
   if (!existsSync(root) || !statSync(root).isDirectory()) {
     throw new Error(`root is not a directory: ${root}`)
   }
   const strict = Boolean(options.strict)
   const warnings = []
-  const manifestResult = loadManifest(root, { strict })
+  const manifestResult = timings.measure("manifest", () => loadManifest(root, { strict }))
   warnings.push(...manifestResult.warnings)
   let findings = [...manifestResult.findings]
   const manifest = manifestResult.manifest
-  const files = collectSourceFiles(root, manifest)
-  const lineRules = loadLineRules(options.rulesPath ?? RULES_PATH)
-  findings.push(...scanLineRules(root, files, lineRules))
+  const files = timings.measure("collectSourceFiles", () => collectSourceFiles(root, manifest))
+  const activeProfiles = timings.measure("activeProfiles", () => activeProfilesFor(manifest))
+  const scanState = timings.measure("resolver", () => resolveScanState(root, manifest, activeProfiles))
+  const lineRules = timings.measure("loadLineRules", () => loadLineRules(options.rulesPath ?? RULES_PATH))
+  findings.push(...timings.measure("lineRules", () => scanLineRules(root, files, lineRules)))
 
   if (manifest) {
-    findings.push(...scanFilePairRules(root, files))
-    findings.push(...scanPackageRules(root, manifest))
-    findings.push(...scanEdgeRules(root, files, manifest))
-    findings.push(...scanRuntimeFactRules(root, manifest))
+    findings.push(...timings.measure("filePairRules", () => scanFilePairRules(root, files)))
+    findings.push(...timings.measure("packageRules", () => scanPackageRules(root, manifest, scanState)))
+    findings.push(...timings.measure("edgeRules", () => scanEdgeRules(root, files, manifest)))
+    findings.push(...timings.measure("runtimeFactRules", () => scanRuntimeFactRules(root, manifest)))
   }
 
   if (strict && manifest) {
-    findings.push(...strictPrerequisites(root, manifest))
+    findings.push(...timings.measure("strictPrerequisites", () => strictPrerequisites(root, manifest)))
   }
 
   const lsp = strict && manifest
-    ? scanLspDiagnostics(root, files, { strict })
-    : { findings: [], compilerDiagnostics: [], probeOk: true }
+    ? scanLspDiagnostics(root, files, { strict, timings })
+    : { findings: [], compilerDiagnostics: [], probeOk: true, cache: null, diagnosticNames: [] }
   findings.push(...lsp.findings)
 
-  const suppressed = applySuppressions(root, findings, manifest)
+  const suppressed = timings.measure("suppressions", () => applySuppressions(root, findings, manifest))
   findings = [...suppressed.findings, ...suppressed.suppressionFindings]
   if (options.failOnSuppressionDrift) {
-    findings.push(...validateSuppressionDrift(root, files, manifest, findings))
+    findings.push(...timings.measure("suppressionDrift", () => validateSuppressionDrift(root, files, manifest, findings)))
   }
 
-  findings = sortFindings(findings)
-  const summary = summarize(findings)
-  const pkg = rootPackageJson(root)
-  const tscVersion = runLocalTsc(root, ["--version"])
+  findings = timings.measure("sortFindings", () => sortFindings(findings))
+  const summary = timings.measure("summarize", () => summarize(findings))
+  const pkg = timings.measure("rootPackageJson", () => rootPackageJson(root))
+  const tscVersion = timings.measure("tscVersion", () => runLocalTsc(root, ["--version"]))
   const lspMeta = {
     available: Boolean(pkg.devDependencies?.["@effect/language-service"]),
     tscVersion: tscVersion.status === 0 ? tscVersion.stdout.trim() : null,
     languageServiceVersion: pkg.devDependencies?.["@effect/language-service"] ?? null,
+    cache: lsp.cache ?? null,
   }
   const result: any = {
     findings,
@@ -69,8 +75,17 @@ export function runScan(inputRoot: string, options: any = {}) {
   }
   if (lsp.compilerDiagnostics.length > 0) result.compilerDiagnostics = lsp.compilerDiagnostics
   if (options.profile) {
-    result.profile = buildProfile(root, manifest, files, lspMeta)
-    result.signals = buildSignals(root, manifest, files)
+    result.profile = timings.measure("profile", () => buildProfile(root, manifest, files, lspMeta, scanState))
+    result.signals = timings.measure("signals", () => buildSignals(root, manifest, files, scanState))
+  }
+  if (options.evidenceDir) {
+    result.evidence = timings.measure("evidence", () => writeScanEvidence(root, manifest, files, lspMeta, scanState, options.evidenceDir))
+  }
+  if (options.timings) {
+    result.timings = {
+      ...timings.snapshot(),
+      lspCache: lsp.cache ?? null,
+    }
   }
   return result
 }
@@ -102,4 +117,29 @@ function sortFindings(findings: any[]) {
 
 export function defaultRulesPath() {
   return RULES_PATH
+}
+
+function createTimings() {
+  const stages: Record<string, number> = {}
+  const start = process.hrtime.bigint()
+  return {
+    measure<T>(name: string, fn: () => T): T {
+      const before = process.hrtime.bigint()
+      try {
+        return fn()
+      } finally {
+        const ms = Number(process.hrtime.bigint() - before) / 1e6
+        stages[name] = Math.round((stages[name] ?? 0) + ms)
+      }
+    },
+    add(name: string, ms: number) {
+      stages[name] = Math.round((stages[name] ?? 0) + ms)
+    },
+    snapshot() {
+      return {
+        totalMs: Math.round(Number(process.hrtime.bigint() - start) / 1e6),
+        stages: Object.fromEntries(Object.entries(stages).sort(([a], [b]) => a.localeCompare(b))),
+      }
+    },
+  }
 }

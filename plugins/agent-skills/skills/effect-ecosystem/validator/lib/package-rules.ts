@@ -1,17 +1,45 @@
-import { packageRequirementsForEffectMajor, otelPeerClosureForEffectMajor, toolingPackages } from "./effect-capabilities.js"
+import { packageRequirementsForEffectMajor, otelPeerClosureForEffectMajor, otelPeerClosurePolicyForEffectMajor, toolingPackages } from "./effect-capabilities.js"
 import { makeFinding, packageRequiresOtel } from "./rule-policy.js"
+import { packageResolution, safePackageMajor } from "./resolver.js"
 
-export function scanPackageRules(root, manifest) {
+export function scanPackageRules(root, manifest, scanState = null) {
   if (!manifest) return []
   const findings = []
   for (const pkg of manifest.packages) {
-    const effectMajor = packageEffectMajor(pkg) ?? 3
+    const resolved = packageResolution(scanState, pkg.path)
+    const effectMajor = safePackageMajor(resolved)
     if (pkg.shape.includes("worker") && !manifest.wranglerPath) {
       findings.push(makeFinding(root, {
         ruleId: "EFF906",
         file: ".effect-skill.json",
         package: pkg.path,
       }))
+    }
+    if (resolved?.comparison === "conflict") {
+      findings.push(makeFinding(root, {
+        ruleId: "EFF324",
+        file: pkg.relativePackageJson,
+        package: pkg.path,
+        message: `declared Effect v${resolved.declaredMajor.major} but installed Effect v${resolved.installedMajor.major}`,
+      }))
+      continue
+    }
+    if (!effectMajor) {
+      if (packageRequiresOtel(pkg.shape) && !hasDep(pkg.deps, "@effect/opentelemetry")) {
+        findings.push(makeFinding(root, {
+          ruleId: "EFF320",
+          file: pkg.relativePackageJson,
+          package: pkg.path,
+        }))
+      }
+      if (pkg.shape.length > 0 && !hasDep(pkg.devDeps, "@effect/vitest")) {
+        findings.push(makeFinding(root, {
+          ruleId: "EFF321",
+          file: pkg.relativePackageJson,
+          package: pkg.path,
+        }))
+      }
+      continue
     }
     const mixed = mixedEffectMajorPackages(pkg, effectMajor)
     if (mixed.length > 0 && pkg.effectMajorPolicy !== "dual-track") {
@@ -47,7 +75,7 @@ export function scanPackageRules(root, manifest) {
         package: pkg.path,
       }))
     }
-    const missingOtelPeers = missingOtelPeerClosure(pkg, effectMajor)
+    const missingOtelPeers = missingOtelPeerClosure(pkg, effectMajor, resolved)
     if (missingOtelPeers.length > 0) {
       findings.push(makeFinding(root, {
         ruleId: "EFF323",
@@ -92,13 +120,22 @@ function hasDep(deps, name) {
   return Object.prototype.hasOwnProperty.call(deps, name)
 }
 
-function packageEffectMajor(pkg) {
-  return effectMajorFromRange(pkg.deps?.effect)
+function missingOtelPeerClosure(pkg, effectMajor, resolved) {
+  if (effectMajor !== 4 || !hasDep(pkg.deps, "@effect/opentelemetry")) return []
+  if (!otelPeerClosureIsDeterministic(resolved, effectMajor)) return []
+  return otelPeerClosureForEffectMajor(effectMajor).filter((name) => !hasDep(pkg.deps, name))
 }
 
-function missingOtelPeerClosure(pkg, effectMajor) {
-  if (effectMajor !== 4 || !hasDep(pkg.deps, "@effect/opentelemetry")) return []
-  return otelPeerClosureForEffectMajor(effectMajor).filter((name) => !hasDep(pkg.deps, name))
+export function otelPeerClosureIsDeterministic(resolved, effectMajor) {
+  const policy = otelPeerClosurePolicyForEffectMajor(effectMajor)
+  if (!policy || policy.stability !== "beta-pinned") return true
+  const pinned = policy.pinnedEffectVersion
+  if (!pinned) return false
+  const candidates = [
+    ...(resolved?.declaredMajor?.candidates ?? []),
+    ...(resolved?.installedMajor?.candidates ?? []),
+  ]
+  return candidates.some((candidate) => candidate.packageName === "effect" && candidate.versionRange === pinned)
 }
 
 function mixedEffectMajorPackages(pkg, effectMajor) {
@@ -120,7 +157,7 @@ function effectMajorFromRange(versionRange) {
   const match = versionRange.match(/\d+/)
   if (!match) return null
   const major = Number(match[0])
-  return major === 4 ? 4 : major > 0 ? 3 : null
+  return major === 4 ? 4 : 3
 }
 
 function aiProviderTransportsFor(manifest, pkg) {

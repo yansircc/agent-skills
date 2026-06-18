@@ -197,6 +197,7 @@ function normalizePackage(root, pkg) {
     shape: pkg.shape ?? [],
     dependencyOwner,
     dependencyOwnerReason: pkg.dependencyOwnerReason ?? null,
+    dependencyRoot,
     effectMajorPolicy: pkg.effectMajorPolicy ?? null,
     packageJsonPath,
     packageJson,

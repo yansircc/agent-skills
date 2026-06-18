@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://effect-ecosystem-skill.local/effect-capabilities.json",
+  "schemaVersion": 1,
+  "toolingPackages": [
+    "@effect/language-service"
+  ],
+  "dualTrackManifestPolicy": {
+    "field": "effectMajorPolicy",
+    "value": "dual-track"
+  },
+  "versions": {
+    "v3": {
+      "effectMajor": 3,
+      "importRoots": [
+        "effect",
+        "@effect/platform",
+        "@effect/rpc",
+        "@effect/sql",
+        "@effect/ai",
+        "@effect/workflow"
+      ],
+      "packageRequirements": [
+        {
+          "ruleId": "EFF300",
+          "shapes": ["db:pg"],
+          "anyOf": ["@effect/sql-pg"],
+          "forbidden": ["pg"]
+        },
+        {
+          "ruleId": "EFF301",
+          "shapes": ["db:mysql"],
+          "anyOf": ["@effect/sql-mysql2"],
+          "forbidden": ["mysql2"]
+        },
+        {
+          "ruleId": "EFF302",
+          "shapes": ["db:sqlite"],
+          "anyOf": ["@effect/sql-sqlite-node", "@effect/sql-sqlite-bun"],
+          "forbidden": ["better-sqlite3"]
+        },
+        {
+          "ruleId": "EFF303",
+          "shapes": ["db:d1"],
+          "anyOf": ["@effect/sql-d1"],
+          "forbidden": []
+        },
+        {
+          "ruleId": "EFF304",
+          "shapes": ["db:clickhouse"],
+          "anyOf": ["@effect/sql-clickhouse"],
+          "forbidden": ["@clickhouse/client"]
+        },
+        {
+          "ruleId": "EFF310",
+          "shapes": ["http-server"],
+          "allOf": ["@effect/platform"],
+          "anyOf": ["@effect/platform-node", "@effect/platform-bun", "@effect/platform-browser"],
+          "forbidden": ["express", "fastify", "hono", "koa", "hapi"]
+        },
+        {
+          "ruleId": "EFF311",
+          "shapes": ["http-client"],
+          "allOf": ["@effect/platform"],
+          "forbidden": ["axios", "got", "node-fetch"]
+        },
+        {
+          "ruleId": "EFF312",
+          "shapes": ["ai"],
+          "allOf": ["@effect/ai"],
+          "providerPrefixAnyOf": ["@effect/ai-"],
+          "forbidden": ["openai", "@anthropic-ai/sdk", "@google/genai"]
+        },
+        {
+          "ruleId": "EFF313",
+          "shapes": ["workflow"],
+          "anyOf": ["@effect/workflow"],
+          "forbidden": []
+        },
+        {
+          "ruleId": "EFF314",
+          "shapes": ["rpc"],
+          "anyOf": ["@effect/rpc"],
+          "forbidden": []
+        },
+        {
+          "ruleId": "EFF315",
+          "shapes": ["frontend"],
+          "anyOf": ["@effect-atom/atom-react"],
+          "forbidden": []
+        }
+      ],
+      "otelPeerClosure": []
+    },
+    "v4": {
+      "effectMajor": 4,
+      "importRoots": [
+        "effect",
+        "effect/unstable/http",
+        "effect/unstable/rpc",
+        "effect/unstable/sql",
+        "effect/unstable/ai",
+        "effect/unstable/workflow"
+      ],
+      "runtimeAdapters": [
+        "@effect/platform-node",
+        "@effect/platform-bun",
+        "@effect/platform-browser",
+        "@effect/sql-d1"
+      ],
+      "unstableBoundaries": [
+        "HTTP/RPC/SQL/AI/Workflow APIs are accepted only behind typed API, LSP, and runtime bundle/dry-run gates.",
+        "React state integration is not v4-closed until a v4-compatible React adapter is proven."
+      ],
+      "packageRequirements": [
+        {
+          "ruleId": "EFF300",
+          "shapes": ["db:pg"],
+          "allOf": ["effect"],
+          "forbidden": ["pg"]
+        },
+        {
+          "ruleId": "EFF301",
+          "shapes": ["db:mysql"],
+          "allOf": ["effect"],
+          "forbidden": ["mysql2"]
+        },
+        {
+          "ruleId": "EFF302",
+          "shapes": ["db:sqlite"],
+          "allOf": ["effect"],
+          "forbidden": ["better-sqlite3"]
+        },
+        {
+          "ruleId": "EFF303",
+          "shapes": ["db:d1"],
+          "allOf": ["effect"],
+          "forbidden": []
+        },
+        {
+          "ruleId": "EFF304",
+          "shapes": ["db:clickhouse"],
+          "allOf": ["effect"],
+          "forbidden": ["@clickhouse/client"]
+        },
+        {
+          "ruleId": "EFF310",
+          "shapes": ["http-server"],
+          "allOf": ["effect"],
+          "forbidden": ["express", "fastify", "hono", "koa", "hapi"]
+        },
+        {
+          "ruleId": "EFF311",
+          "shapes": ["http-client"],
+          "allOf": ["effect"],
+          "forbidden": ["axios", "got", "node-fetch"]
+        },
+        {
+          "ruleId": "EFF312",
+          "shapes": ["ai"],
+          "allOf": ["effect"],
+          "forbidden": ["openai", "@anthropic-ai/sdk", "@google/genai"]
+        },
+        {
+          "ruleId": "EFF313",
+          "shapes": ["workflow"],
+          "allOf": ["effect"],
+          "forbidden": []
+        },
+        {
+          "ruleId": "EFF314",
+          "shapes": ["rpc"],
+          "allOf": ["effect"],
+          "forbidden": []
+        },
+        {
+          "ruleId": "EFF315",
+          "shapes": ["frontend"],
+          "anyOf": ["@effect-atom/atom-react"],
+          "forbidden": []
+        }
+      ],
+      "otelPeerClosure": [
+        "@opentelemetry/api",
+        "@opentelemetry/api-logs",
+        "@opentelemetry/resources",
+        "@opentelemetry/sdk-logs",
+        "@opentelemetry/sdk-metrics",
+        "@opentelemetry/sdk-trace-base",
+        "@opentelemetry/sdk-trace-node",
+        "@opentelemetry/sdk-trace-web",
+        "@opentelemetry/semantic-conventions"
+      ]
+    }
+  }
+}

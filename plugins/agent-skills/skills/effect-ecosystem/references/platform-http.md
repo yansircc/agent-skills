@@ -72,23 +72,30 @@ const User = Schema.Struct({ id: Schema.Number, name: Schema.String })
 
 const UsersGroup = HttpApiGroup.make("users")
   .add(
-    HttpApiEndpoint.get("getUsers", "/users")
-      .addSuccess(Schema.Array(User))
+    HttpApiEndpoint.get("getUsers", "/users", {
+      success: Schema.Array(User),
+    })
   )
   .add(
-    HttpApiEndpoint.get("getUser", "/users/:id")
+    HttpApiEndpoint.get("getUser", "/users/:id", {
+      success: User,
+    })
       .setPath(Schema.Struct({ id: Schema.NumberFromString }))
-      .addSuccess(User)
       .addError(UserNotFound)
   )
   .add(
-    HttpApiEndpoint.post("createUser", "/users")
+    HttpApiEndpoint.post("createUser", "/users", {
+      success: User,
+    })
       .setPayload(Schema.Struct({ name: Schema.NonEmptyString }))
-      .addSuccess(User)
   )
 
 export const MyApi = HttpApi.make("MyApi").add(UsersGroup)
 ```
+
+v3 projects may still encounter chained `.addSuccess(...)` examples. In v4 beta
+the success schema belongs in constructor options:
+`HttpApiEndpoint.get(name, path, { success })`.
 
 ### 4.2 服务端实现
 

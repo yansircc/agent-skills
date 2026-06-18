@@ -4,7 +4,7 @@ CODEX_SKILLS_DIR ?= $(HOME)/.codex/skills
 SKILL_NAME ?= effect-ecosystem
 BUILD_DIR ?= dist
 
-.PHONY: build install skill verify
+.PHONY: build install skill verify verify-v4-acceptance
 
 build:
 	rm -rf "$(BUILD_DIR)"
@@ -31,7 +31,12 @@ verify: build
 	node "$(BUILD_DIR)/scripts/check-skill-thin.js"
 	node "$(BUILD_DIR)/scripts/check-profile-routing.js"
 	node "$(BUILD_DIR)/scripts/check-evidence-contracts.js"
+	node "$(BUILD_DIR)/scripts/check-signal-contracts.js"
+	node "$(BUILD_DIR)/scripts/check-effect-capabilities.js"
 	node "$(BUILD_DIR)/scripts/typecheck-snippets.js"
 	node "$(BUILD_DIR)/validator/scan.js" --self-test --exact
 	node "$(BUILD_DIR)/validator/scan.js" --self-test --contract
 	node "$(BUILD_DIR)/validator/scan.js" . --strict --json --profile >/tmp/effect-skill-verify-profile.json
+
+verify-v4-acceptance: build
+	node "$(BUILD_DIR)/scripts/verify-v4-acceptance.js"

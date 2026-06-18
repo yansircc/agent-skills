@@ -66,10 +66,9 @@ Effect provisioning:
 ```ts
 import { Context, Effect, Layer } from "effect"
 
-class D1Binding extends Context.Tag("D1Binding")<
-  D1Binding,
-  { readonly db: D1Database }
->() {}
+class D1Binding extends Context.Service<D1Binding>()("D1Binding", {
+  sync: () => ({ db: undefined as unknown as D1Database }),
+}) {}
 
 const program = Effect.gen(function* () {
   const binding = yield* D1Binding
@@ -78,7 +77,7 @@ const program = Effect.gen(function* () {
 
 export default {
   fetch(request: Request, env: { DB: D1Database }) {
-    const BindingLive = Layer.succeed(D1Binding, { db: env.DB })
+    const BindingLive = Layer.succeed(D1Binding, D1Binding.of({ db: env.DB }))
     return Effect.runPromise(Effect.provide(program, BindingLive))
   },
 }

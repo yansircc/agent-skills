@@ -1,8 +1,8 @@
-import ts from "typescript"
 import { RULES } from "./rule-policy.js"
 import { codeTokenText } from "./code-view.js"
 import { cloudflareRuntimeFacts } from "./runtime-facts.js"
-import { assertRuntimeFacts } from "./contract-validation.js"
+import { astFactsForFile } from "./ast-facts.js"
+import { assertRuntimeFacts, compileContractValidators, signalDefinitionsByKind } from "./contract-validation.js"
 
 const ALWAYS_REFERENCES = [
   "references/generated/rules-summary.md",
@@ -42,6 +42,9 @@ const SHAPE_PROFILES = {
   frontend: ["frontend"],
   node: ["node"],
 }
+
+const SIGNAL_VALIDATORS = compileContractValidators()
+const SIGNAL_DEFINITIONS = signalDefinitionsByKind(SIGNAL_VALIDATORS.signalsContract)
 
 export function buildProfile(root, manifest, files, lsp) {
   const activeProfiles = activeProfilesFor(manifest)
@@ -113,46 +116,50 @@ export function requiredReferencesFor(activeProfiles, effectVersions, manifest =
 export function buildSignals(root, manifest, files) {
   const signals = []
   if (!manifest) return signals
+  const emit = (kind, partial) => {
+    const definition: any = SIGNAL_DEFINITIONS.get(kind)
+    if (!definition) throw new Error(`unknown signal kind: ${kind}`)
+    const signal = {
+      kind,
+      ...partial,
+      skill_ref: definition.skill_ref,
+      agent_action: definition.agent_action,
+    }
+    const result = SIGNAL_VALIDATORS.validateSignal(signal)
+    if (!result.ok) throw new Error(result.message)
+    signals.push(signal)
+  }
   const runtimeFacts = cloudflareRuntimeFacts(root, manifest)
   if (runtimeFacts) {
     assertRuntimeFacts(runtimeFacts)
-    signals.push({
-      kind: "cloudflare-runtime-facts",
+    emit("cloudflare-runtime-facts", {
       facts: runtimeFacts,
-      skill_ref: "references/runtime-boundaries.md §Cloudflare runtime facts",
-      agent_action: "Use these facts only as runtime substrate; decide support with validUnder proof, not scanner inference.",
     })
   }
   for (const file of files) {
     if (file.roles.generated) continue
     const text = codeTokenText(file)
+    const facts = astFactsForFile(file)
     if (/HttpApiEndpoint|HttpApiGroup|HttpApi\.make/.test(text)) {
-      signals.push({
-        kind: "http-api-boundary-file",
+      emit("http-api-boundary-file", {
         file: file.relative,
         facts: {
           containsHttpApiToken: true,
           importsSchema: /from\s+["']effect\/Schema["']|from\s+["']effect["'].*Schema/.test(text),
         },
-        skill_ref: "SKILL.md §3",
-        agent_action: "Read the file and decide whether boundary DTOs/errors require effect/Schema.",
       })
     }
     if (/Rpc\.make|RpcGroup|RpcRouter/.test(text)) {
-      signals.push({
-        kind: "rpc-boundary-file",
+      emit("rpc-boundary-file", {
         file: file.relative,
         facts: {
           containsRpcToken: true,
           importsSchema: /from\s+["']effect\/Schema["']|from\s+["']effect["'].*Schema/.test(text),
         },
-        skill_ref: "SKILL.md §4",
-        agent_action: "Read the file and decide whether requests, responses, and errors are schema-backed.",
       })
     }
     if (file.package?.shape?.includes("library") && /\bexport\s+(const|function)\b/.test(text)) {
-      signals.push({
-        kind: "library-exported-effect-file",
+      emit("library-exported-effect-file", {
         package: file.package.path,
         file: file.relative,
         facts: {
@@ -160,16 +167,35 @@ export function buildSignals(root, manifest, files) {
           containsEffectType: /\bEffect\./.test(text),
           containsWithSpan: /\bEffect\.withSpan\b/.test(text),
         },
-        skill_ref: "SKILL.md §5",
-        agent_action: "Read exported Effects and decide which public boundaries need spans.",
+      })
+    }
+    const resilienceCalls = facts.calls.filter((name) =>
+      ["Effect.retry", "Effect.repeat", "Schedule.recurs", "Schedule.exponential", "Schedule.spaced", "Schedule.fixed", "Schedule.jittered", "Schedule.upTo"].includes(name)
+    )
+    if (resilienceCalls.length > 0 || facts.scheduleMembers.length > 0) {
+      emit("resilience-boundary-file", {
+        file: file.relative,
+        facts: {
+          calls: resilienceCalls,
+          scheduleMembers: facts.scheduleMembers,
+        },
+      })
+    }
+    const pubsubCalls = facts.calls.filter((name) => name.startsWith("PubSub."))
+    if (pubsubCalls.length > 0) {
+      emit("pubsub-ordering-file", {
+        file: file.relative,
+        facts: {
+          calls: pubsubCalls,
+          pubsubConstructors: facts.pubsubConstructors,
+        },
       })
     }
   }
   for (const pkg of manifest.packages) {
     if (pkg.shape.includes("ai")) {
       const effectAiProviderPackages = Object.keys(pkg.deps).filter((name) => name.startsWith("@effect/ai-")).sort()
-      signals.push({
-        kind: "ai-runtime-facts",
+      emit("ai-runtime-facts", {
         package: pkg.path,
         facts: {
           hasEffectAiDependency: Boolean(pkg.deps["@effect/ai"]),
@@ -180,18 +206,13 @@ export function buildSignals(root, manifest, files) {
             .sort((a, b) => a.path.localeCompare(b.path)),
           directProviderSdkDependencies: ["openai", "@anthropic-ai/sdk", "@google/genai"].filter((name) => Boolean(pkg.deps[name])),
         },
-        skill_ref: "references/effect-ai.md §Provider ownership",
-        agent_action: "Decide whether @effect/ai owns the loop and whether provider packages or declared transports are terminal adapters only.",
       })
     }
     if (pkg.shape.some((shape) => !["library", "node-tool"].includes(shape))) {
       const packageFiles = files.filter((file) => file.package?.path === pkg.path)
-      signals.push({
-        kind: "observability-wiring-facts",
+      emit("observability-wiring-facts", {
         package: pkg.path,
         facts: observabilityFacts(pkg, packageFiles),
-        skill_ref: "SKILL.md §5",
-        agent_action: "Decide whether production top-level Layer wires the correct OTel SDK for this runtime.",
       })
     }
   }
@@ -211,14 +232,12 @@ function effectMajor(versionRange) {
 }
 
 function observabilityFacts(pkg, packageFiles) {
-  const layerFactories = new Set()
-  const importedModules = new Set()
+  const layerFactories = new Set<string>()
+  const importedModules = new Set<string>()
   for (const file of packageFiles) {
-    const source = file.lines.map((line) => line.text).join("\n")
-    const sourceFile = ts.createSourceFile(file.relative, source, ts.ScriptTarget.Latest, true, scriptKindFor(file.relative))
-    const facts = opentelemetryFactsForFile(sourceFile)
-    for (const factory of facts.layerFactories) layerFactories.add(factory)
-    for (const moduleName of facts.importedModules) importedModules.add(moduleName)
+    const facts = astFactsForFile(file)
+    for (const factory of facts.opentelemetryLayerFactories) layerFactories.add(factory)
+    for (const moduleName of facts.opentelemetryImportedModules) importedModules.add(moduleName)
   }
   const sortedLayerFactories = [...layerFactories].sort()
   return {
@@ -234,107 +253,6 @@ function observabilityFacts(pkg, packageFiles) {
   }
 }
 
-function opentelemetryFactsForFile(sourceFile) {
-  const imports = opentelemetryImportIndex(sourceFile)
-  const layerFactories = new Set()
-  const importedModules = new Set(imports.importedModules)
-  visit(sourceFile)
-  return {
-    importedModules: [...importedModules],
-    layerFactories: [...layerFactories],
-  }
-
-  function visit(node) {
-    if (ts.isPropertyAccessExpression(node)) {
-      const factory = opentelemetryLayerFactory(node, imports)
-      if (factory) layerFactories.add(factory)
-    }
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-      const factory = imports.directLayerFunctions.get(node.expression.text)
-      if (factory) layerFactories.add(factory)
-    }
-    ts.forEachChild(node, visit)
-  }
-}
-
-function opentelemetryImportIndex(sourceFile) {
-  const rootNamespaces = new Set()
-  const namedModules = new Map()
-  const submoduleNamespaces = new Map()
-  const directLayerFunctions = new Map()
-  const importedModules = new Set()
-
-  for (const statement of sourceFile.statements) {
-    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
-    const moduleSpecifier = statement.moduleSpecifier.text
-    const otelModule = opentelemetryModuleName(moduleSpecifier)
-    if (otelModule === null) continue
-    if (otelModule !== "root") importedModules.add(otelModule)
-
-    const clause = statement.importClause
-    if (!clause) continue
-    if (clause.name && otelModule !== "root") submoduleNamespaces.set(clause.name.text, otelModule)
-    if (!clause.namedBindings) continue
-
-    if (ts.isNamespaceImport(clause.namedBindings)) {
-      const local = clause.namedBindings.name.text
-      if (otelModule === "root") rootNamespaces.add(local)
-      else submoduleNamespaces.set(local, otelModule)
-      continue
-    }
-
-    for (const element of clause.namedBindings.elements) {
-      const importedName = (element.propertyName ?? element.name).text
-      const localName = element.name.text
-      if (otelModule === "root") {
-        namedModules.set(localName, importedName)
-        importedModules.add(importedName)
-      } else if (isLayerFactoryName(importedName)) {
-        directLayerFunctions.set(localName, `${otelModule}.${importedName}`)
-      }
-    }
-  }
-
-  return { rootNamespaces, namedModules, submoduleNamespaces, directLayerFunctions, importedModules }
-}
-
-function opentelemetryLayerFactory(node, imports) {
-  const factoryName = node.name.text
-  if (!isLayerFactoryName(factoryName)) return null
-  const target = node.expression
-
-  if (ts.isIdentifier(target)) {
-    const namedModule = imports.namedModules.get(target.text)
-    if (namedModule) return `${namedModule}.${factoryName}`
-    const submodule = imports.submoduleNamespaces.get(target.text)
-    if (submodule) return `${submodule}.${factoryName}`
-    return null
-  }
-
-  if (ts.isPropertyAccessExpression(target) && ts.isIdentifier(target.expression)) {
-    if (imports.rootNamespaces.has(target.expression.text)) return `${target.name.text}.${factoryName}`
-  }
-
-  return null
-}
-
-function opentelemetryModuleName(moduleSpecifier) {
-  if (moduleSpecifier === "@effect/opentelemetry") return "root"
-  if (!moduleSpecifier.startsWith("@effect/opentelemetry/")) return null
-  const [moduleName] = moduleSpecifier.slice("@effect/opentelemetry/".length).split("/")
-  return moduleName || null
-}
-
-function isLayerFactoryName(name) {
-  return name === "layer" || /^layer[A-Z0-9_]/.test(name)
-}
-
 function hasLayerFactory(factories, moduleName) {
   return factories.some((factory) => factory === `${moduleName}.layer` || factory.startsWith(`${moduleName}.layer`))
-}
-
-function scriptKindFor(path) {
-  if (path.endsWith(".tsx")) return ts.ScriptKind.TSX
-  if (path.endsWith(".jsx")) return ts.ScriptKind.JSX
-  return ts.ScriptKind.TS
 }

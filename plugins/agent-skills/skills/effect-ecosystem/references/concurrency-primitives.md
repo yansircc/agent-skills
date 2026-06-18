@@ -123,6 +123,19 @@ yield* PubSub.publish(pubsub, { _tag: "UserCreated", id: "u_1" })
 
 `Queue` = 工作分发（每个项被**一个**消费者拿走）；`PubSub` = 广播（每个项被**所有**订阅者拿到）。
 
+## PubSub 订阅时序
+
+`PubSub.publish` 只广播给已经存在的 subscriber；它不是 replay log。若事件不
+能丢，先建立 subscriber，再开放 publisher，或把持久化队列 / DB outbox 作为
+source of truth。scanner 只暴露 `subscribe` / `publish` / constructor 的原子
+观测，是否需要 replay 是业务边界判断。
+
+## STM
+
+多个 `Ref` / `Queue` / `PubSub` 操作需要作为一个事务提交时，用 STM 系列原语
+表达原子性；不要靠手写锁和共享 mutable object 拼时序。STM 适合内存内并发
+一致性，不替代数据库事务或跨进程锁。
+
 ## 6. `Deferred` — 一次性异步信号
 
 替代 Promise 用于 fiber 间一次性同步：N 个 fiber 等待 1 个事件。

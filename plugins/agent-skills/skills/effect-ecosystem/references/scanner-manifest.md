@@ -99,6 +99,11 @@ major version from package dependencies, `profile.effectVersionsResolution` is
 `unresolved` and version-specific references are omitted. The agent must fix the
 declared dependency owner instead of loading both v3 and v4 references.
 
+`effectMajorPolicy: "dual-track"` is the only manifest escape hatch for a
+package that intentionally publishes both v3 and v4 runtime variants. Without
+that declaration, mixing `effect@4` with v3-era `@effect/*` runtime packages, or
+`effect@3` with v4 `@effect/*` packages, is a package-rule error.
+
 ## Agent Workflow
 
 1. Run `effect-skill-scan <repo> --strict --json --profile`.

@@ -6,8 +6,10 @@ description: Use when writing, reviewing, or refactoring TypeScript projects tha
 # Effect Ecosystem Executor
 
 This skill is an execution entrypoint, not the rule owner. Rule facts live in
-`contracts/rules.json`; generated summaries live in
-`references/generated/rules-summary.md` and `references/generated/checklist.md`.
+`contracts/rules.json`; signal and version capability contracts live in
+`contracts/signals.schema.json` and `contracts/effect-capabilities.json`.
+Generated summaries live in `references/generated/rules-summary.md` and
+`references/generated/checklist.md`.
 
 ## Invariant
 

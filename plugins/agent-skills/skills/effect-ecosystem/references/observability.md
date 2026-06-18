@@ -124,6 +124,15 @@ program.pipe(
 
 ## 4. OpenTelemetry 桥接
 
+v4 beta 的 `@effect/opentelemetry` 不是单包闭环。除
+`@effect/opentelemetry@4.0.0-beta.84` 外，typed/runtime import 还需要安装
+对应 `@opentelemetry/*` peer closure：
+
+`@opentelemetry/api`, `@opentelemetry/api-logs`, `@opentelemetry/resources`,
+`@opentelemetry/sdk-logs`, `@opentelemetry/sdk-metrics`,
+`@opentelemetry/sdk-trace-base`, `@opentelemetry/sdk-trace-node`,
+`@opentelemetry/sdk-trace-web`, `@opentelemetry/semantic-conventions`。
+
 ### 4.1 Node (服务端)
 
 ```typescript
@@ -191,6 +200,9 @@ const computePriceTraced = Effect.fn("pricing.compute")(
 // 调用与原函数一模一样
 const total = yield* computePriceTraced(3, 100)
 ```
+
+`Effect.fnUntraced` 只用于热路径或内部 helper，且调用链外层已有 span。不要把它
+作为默认函数包装器，否则 public boundary 的可观测性会消失。
 
 适合：
 - 给 N 个函数一次性加可观测性（不污染函数体）。

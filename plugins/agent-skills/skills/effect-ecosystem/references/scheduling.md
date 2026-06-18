@@ -31,7 +31,7 @@ Schedule.exponential("100 millis").pipe(
   Schedule.intersect(Schedule.recurs(5))    // 最多 5 次 AND 指数退避
 )
 
-// 带 jitter（防雷击）
+// 带 jitter（避免同批请求同步退避）
 Schedule.exponential("100 millis").pipe(
   Schedule.jittered                          // 加随机扰动
 )
@@ -210,10 +210,20 @@ const tieredSchedule = Schedule.spaced("5 seconds").pipe(
 
 `Schedule.*` 中的 delay 全由 `Clock` 服务决定。`TestClock.adjust` 推进虚拟时间 → 整套 schedule 跑到对应步骤，**测试 retry / repeat / cron 不需要真等**。
 
+## Jitter 与韧性边界
+
+`Schedule.jittered` 是韧性边界判断，不是所有 `Schedule.recurs` 的机械规则。
+当 retry/repeat 面向共享下游、批量 worker、cron 同步启动、队列 consumer、或
+用户请求扇出时，退避必须加 jitter，避免同一时间重试放大压力。
+
+本地测试、固定次数纯内存 loop、单 fiber 内部轮询、或确实要求精确节拍的
+调度可以不加 jitter，但这种判断应落在调用边界，而不是 scanner 的确定性
+finding。
+
 ## 12. 禁忌
 
 - 严禁 `setInterval(fn, ms)` 做后台任务 — `Effect.repeat(task, Schedule.spaced(...))` + `Effect.forkScoped`。
 - 严禁手写 retry-with-backoff 循环 — `Effect.retry({ schedule })`。
 - 严禁裸 `Promise.race(promise, timeout)` — `Effect.timeout`。
-- 严禁忘记 `Schedule.jittered` — 高并发同时退避会撞墙。
+- 高并发 / 共享下游 retry 边界必须评估 `Schedule.jittered`；纯本地固定循环不机械要求。
 - 严禁让 retry 上限无界 — 必须 `Schedule.intersect(Schedule.recurs(N))` 或 `Schedule.upTo("X")`。

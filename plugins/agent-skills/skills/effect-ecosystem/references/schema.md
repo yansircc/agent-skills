@@ -154,6 +154,10 @@ const DateFromYMD = Schema.transform(
 
 更复杂的可失败 transform 用 `Schema.transformOrFail`。
 
+`strict: false` 只属于 wire-format 兼容边界：外部 payload 临时允许宽输入，
+随后必须通过 transform / decode 收敛到内部严格类型。不要在领域模型 schema 上
+长期使用 `strict: false`，否则会把兼容策略泄漏成业务事实。
+
 ## 9. Array / 容器
 
 ```typescript

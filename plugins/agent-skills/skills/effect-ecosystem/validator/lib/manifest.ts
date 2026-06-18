@@ -75,7 +75,13 @@ export function validateManifestShape(raw) {
       if (pkg.dependencyOwner === "workspace-root" && typeof pkg.dependencyOwnerReason !== "string") {
         errors.push(`packages[${index}].dependencyOwnerReason is required for workspace-root`)
       }
+      if (pkg.effectMajorPolicy && pkg.effectMajorPolicy !== "dual-track") {
+        errors.push(`packages[${index}].effectMajorPolicy must be dual-track`)
+      }
     })
+  }
+  if (raw.effectMajorPolicy && raw.effectMajorPolicy !== "dual-track") {
+    errors.push("effectMajorPolicy must be dual-track")
   }
   validatePathOwners(raw.allowedAdapters ?? [], "allowedAdapters", errors, true)
   validatePathOwners(raw.executableEdges ?? [], "executableEdges", errors, false)
@@ -141,6 +147,7 @@ function normalizeManifest(root, raw, manifestPath) {
       shape: raw.shape,
       dependencyOwner: raw.dependencyOwner,
       dependencyOwnerReason: raw.dependencyOwnerReason,
+      effectMajorPolicy: raw.effectMajorPolicy,
     })]
 
   return {
@@ -190,6 +197,7 @@ function normalizePackage(root, pkg) {
     shape: pkg.shape ?? [],
     dependencyOwner,
     dependencyOwnerReason: pkg.dependencyOwnerReason ?? null,
+    effectMajorPolicy: pkg.effectMajorPolicy ?? null,
     packageJsonPath,
     packageJson,
     deps: depsOf(packageJson),

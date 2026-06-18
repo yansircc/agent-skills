@@ -311,21 +311,28 @@ export class DbPool extends Effect.Service<DbPool>()("app/core/DbPool", {
 - `dependencies: [...]` 声明依赖 → `UserRepo.Default` 已经包含 `Logger.Default`，无需手动 `Layer.provide`。
 - Tag 字符串使用 `package/scope/Service` namespace 避免碰撞。
 
-### 8.1 低层 `Context.Tag` —— 何时仍然有用
+### 8.1 低层 `Context.Service` —— v4 service tag
 
-需要纯接口 / 极简服务 / 跨包共享 Tag 时：
+v4 beta 中低层 service tag 使用 `Context.Service`。需要纯接口 / 极简服务 /
+跨包共享 service identity 时：
 
 ```typescript
-import { Context } from "effect"
+import { Context, Effect, Layer } from "effect"
 
-export class Random extends Context.Tag("app/core/Random")<
-  Random,
-  { readonly next: Effect.Effect<number> }
->() {}
+export class Random extends Context.Service<Random>()("app/core/Random", {
+  sync: () => ({
+    next: Effect.sync(() => Math.random()),
+  }),
+}) {}
 
 // 手写 Layer
-export const RandomLive = Layer.succeed(Random, { next: Effect.sync(() => Math.random()) })
+export const RandomLive = Layer.succeed(Random, Random.of({
+  next: Effect.sync(() => Math.random()),
+}))
 ```
+
+v3 旧示例常见 `Context.Tag("id")<Self, Shape>()`；迁 v4 时不要照搬。
+`Context.Tag` 包存在不是能力证明，typed API gate 必须以本地 v4 `tsc` 为准。
 
 ### 9. Layer 构造原语（手写）
 

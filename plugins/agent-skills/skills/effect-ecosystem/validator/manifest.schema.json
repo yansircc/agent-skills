@@ -39,6 +39,7 @@
       "items": { "type": "string", "minLength": 1 }
     },
     "wranglerPath": { "type": "string", "minLength": 1 },
+    "effectMajorPolicy": { "enum": ["dual-track"] },
     "suppression": {
       "type": "object",
       "additionalProperties": false,
@@ -83,7 +84,8 @@
         "path": { "type": "string", "minLength": 1 },
         "shape": { "$ref": "#/$defs/shapeArray" },
         "dependencyOwner": { "enum": ["package-local", "workspace-root"] },
-        "dependencyOwnerReason": { "type": "string", "minLength": 1 }
+        "dependencyOwnerReason": { "type": "string", "minLength": 1 },
+        "effectMajorPolicy": { "enum": ["dual-track"] }
       },
       "allOf": [
         {

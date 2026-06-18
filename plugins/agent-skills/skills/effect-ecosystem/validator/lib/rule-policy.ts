@@ -109,6 +109,18 @@ export const RULES = {
     severity: "error",
     message: "non-empty shape requires @effect/vitest in devDependencies.",
   },
+  EFF322: {
+    name: "mixed-effect-major",
+    family: "package",
+    severity: "error",
+    message: "A package must not mix Effect v3 and v4 runtime ecosystem packages unless manifest effectMajorPolicy is dual-track.",
+  },
+  EFF323: {
+    name: "v4-opentelemetry-missing-peer",
+    family: "package",
+    severity: "error",
+    message: "Effect v4 @effect/opentelemetry requires the full @opentelemetry/* peer closure.",
+  },
   EFF400: {
     name: "run-outside-executable-edge",
     family: "edge",
@@ -206,77 +218,6 @@ export const RULES = {
     message: "shape worker is ambiguous without a declared runtime fact source such as wranglerPath.",
   },
 }
-
-export const PACKAGE_REQUIREMENTS = [
-  {
-    ruleId: "EFF300",
-    shapes: ["db:pg"],
-    anyOf: ["@effect/sql-pg"],
-    forbidden: ["pg"],
-  },
-  {
-    ruleId: "EFF301",
-    shapes: ["db:mysql"],
-    anyOf: ["@effect/sql-mysql2"],
-    forbidden: ["mysql2"],
-  },
-  {
-    ruleId: "EFF302",
-    shapes: ["db:sqlite"],
-    anyOf: ["@effect/sql-sqlite-node", "@effect/sql-sqlite-bun"],
-    forbidden: ["better-sqlite3"],
-  },
-  {
-    ruleId: "EFF303",
-    shapes: ["db:d1"],
-    anyOf: ["@effect/sql-d1"],
-    forbidden: [],
-  },
-  {
-    ruleId: "EFF304",
-    shapes: ["db:clickhouse"],
-    anyOf: ["@effect/sql-clickhouse"],
-    forbidden: ["@clickhouse/client"],
-  },
-  {
-    ruleId: "EFF310",
-    shapes: ["http-server"],
-    allOf: ["@effect/platform"],
-    anyOf: ["@effect/platform-node", "@effect/platform-bun", "@effect/platform-browser"],
-    forbidden: ["express", "fastify", "hono", "koa", "hapi"],
-  },
-  {
-    ruleId: "EFF311",
-    shapes: ["http-client"],
-    allOf: ["@effect/platform"],
-    forbidden: ["axios", "got", "node-fetch"],
-  },
-  {
-    ruleId: "EFF312",
-    shapes: ["ai"],
-    allOf: ["@effect/ai"],
-    providerPrefixAnyOf: ["@effect/ai-"],
-    forbidden: ["openai", "@anthropic-ai/sdk", "@google/genai"],
-  },
-  {
-    ruleId: "EFF313",
-    shapes: ["workflow"],
-    anyOf: ["@effect/workflow"],
-    forbidden: [],
-  },
-  {
-    ruleId: "EFF314",
-    shapes: ["rpc"],
-    anyOf: ["@effect/rpc"],
-    forbidden: [],
-  },
-  {
-    ruleId: "EFF315",
-    shapes: ["frontend"],
-    anyOf: ["@effect-atom/atom-react"],
-    forbidden: [],
-  },
-]
 
 export function ruleMeta(ruleId) {
   return RULES[ruleId] ?? {

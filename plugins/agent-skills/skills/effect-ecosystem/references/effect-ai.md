@@ -12,6 +12,14 @@
 | `@effect/ai-google` | Google Gemini 实现 |
 | `@effect/ai-amazon-bedrock` | Amazon Bedrock 实现 |
 
+## Provider ownership
+
+业务循环、tool 调用、结构化输出、重试、timeout、span 归 `@effect/ai` 或 v4
+`effect/unstable/ai` 所有。平台暂缺 provider 包时，可以在
+`.effect-skill.json` 用 `aiProviderTransports[]` 声明 repo-owned terminal
+transport，但 transport 只能是最外层适配器，不能重新拥有 agent loop
+语义。
+
 ## 2. 业务侧：与 provider 解耦
 
 ```typescript

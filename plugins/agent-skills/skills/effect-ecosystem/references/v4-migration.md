@@ -40,7 +40,8 @@ Effect v4 已于 2026 年 2 月进入 beta。本文记录 v3 → v4 的关键变
 ### 3.5 API 重命名 / 行为变化
 
 - `Schema` 模块路径调整。
-- Service 定义偏好 class-based `Context.Tag` 模式更彻底。
+- Service 定义使用 `Context.Service`；v3 `Context.Tag("id")<Self, Shape>()`
+  示例不能直接迁到 v4 beta。
 - `Generator` yieldable 语义统一。
 - Layer 组合算子部分重命名（详见 https://github.com/Effect-TS/effect-smol/blob/main/MIGRATION.md）。
 

@@ -42,6 +42,12 @@
     "atomic-signals",
     "signal-token-view",
     "signals-no-semantic-verdicts",
+    "signal-contract",
+    "signal-ref",
+    "effect-capabilities",
+    "resilience-signals",
+    "pubsub-signals",
+    "v4-package-rules",
     "runtime-facts-schema",
     "cloudflare-runtime-facts",
     "workflow-shape",
@@ -63,6 +69,8 @@
     "EFF315",
     "EFF320",
     "EFF321",
+    "EFF322",
+    "EFF323",
     "EFF400",
     "EFF401",
     "EFF402",
@@ -87,6 +95,10 @@
     "ai-missing-provider-or-transport-red",
     "line-rule-comment-literal-green",
     "signal-comment-literal-green",
+    "resilience-comment-literal-green",
+    "pubsub-comment-literal-green",
+    "v4-otel-missing-peer-red",
+    "mixed-v3-v4-package-red",
     "profile-exit-failing",
     "profile-required-references",
     "profile-version-unresolved-fast-fail",
@@ -785,6 +797,156 @@
       "expectExit": 0,
       "expectRules": [],
       "expectSignals": ["http-api-boundary-file", "library-exported-effect-file"]
+    },
+    {
+      "name": "resilience-jittered-signal-green",
+      "suites": ["resilience-signals", "atomic-signals", "red-green-fixtures"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/retry.ts": "import { Effect, Schedule } from \"effect\"\nexport const program = Effect.retry(Effect.fail(\"x\"), { schedule: Schedule.exponential(\"100 millis\").pipe(Schedule.jittered) })\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["resilience-boundary-file"],
+      "expectSignalFacts": [
+        {
+          "kind": "resilience-boundary-file",
+          "facts": {
+            "calls": ["Effect.retry", "Schedule.exponential"],
+            "scheduleMembers": ["Schedule.exponential", "Schedule.jittered"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "resilience-recurs-only-signal-green",
+      "suites": ["resilience-signals", "atomic-signals", "red-green-fixtures"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/retry.ts": "import { Effect, Schedule } from \"effect\"\nexport const program = Effect.retry(Effect.fail(\"x\"), { schedule: Schedule.recurs(3) })\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["resilience-boundary-file"],
+      "expectSignalFacts": [
+        {
+          "kind": "resilience-boundary-file",
+          "facts": {
+            "calls": ["Effect.retry", "Schedule.recurs"],
+            "scheduleMembers": ["Schedule.recurs"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "resilience-comment-literal-green",
+      "suites": ["resilience-signals", "signal-token-view", "cheapest-plausible-lies"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/docs.ts": "// Effect.retry with Schedule.jittered docs only\nconst docs = `Schedule.recurs(3)`\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignalCount": 0
+    },
+    {
+      "name": "pubsub-subscribe-publish-signal-green",
+      "suites": ["pubsub-signals", "atomic-signals", "red-green-fixtures"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/pubsub.ts": "import { Effect, PubSub } from \"effect\"\nexport const program = Effect.gen(function* () {\n  const bus = yield* PubSub.bounded<string>(16)\n  const sub = yield* PubSub.subscribe(bus)\n  yield* PubSub.publish(bus, \"x\")\n  return sub\n})\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["pubsub-ordering-file"],
+      "expectSignalFacts": [
+        {
+          "kind": "pubsub-ordering-file",
+          "facts": {
+            "calls": ["PubSub.bounded", "PubSub.publish", "PubSub.subscribe"],
+            "pubsubConstructors": ["PubSub.bounded"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "pubsub-publish-only-signal-green",
+      "suites": ["pubsub-signals", "atomic-signals", "red-green-fixtures"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/pubsub.ts": "import { PubSub } from \"effect\"\nexport const publishOnly = (bus: PubSub.PubSub<string>) => PubSub.publish(bus, \"x\")\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignals": ["pubsub-ordering-file"],
+      "expectSignalFacts": [
+        {
+          "kind": "pubsub-ordering-file",
+          "facts": {
+            "calls": ["PubSub.publish"],
+            "pubsubConstructors": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "pubsub-comment-literal-green",
+      "suites": ["pubsub-signals", "signal-token-view", "cheapest-plausible-lies"],
+      "profile": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+        "src/docs.ts": "// PubSub.subscribe(bus)\nconst docs = `PubSub.publish(bus, x)`\n"
+      },
+      "expectExit": 0,
+      "expectRules": [],
+      "expectSignalCount": 0
+    },
+    {
+      "name": "v4-effect-unstable-capabilities-green",
+      "suites": ["v4-package-rules", "package-presence", "red-green-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"http-server\",\"http-client\",\"db:pg\",\"ai\",\"rpc\",\"workflow\",\"node\"]}",
+        "package.json": "{\"dependencies\":{\"effect\":\"4.0.0-beta.84\",\"@effect/opentelemetry\":\"4.0.0-beta.84\",\"@opentelemetry/api\":\"1.9.0\",\"@opentelemetry/api-logs\":\"0.203.0\",\"@opentelemetry/resources\":\"2.0.0\",\"@opentelemetry/sdk-logs\":\"0.203.0\",\"@opentelemetry/sdk-metrics\":\"2.0.0\",\"@opentelemetry/sdk-trace-base\":\"2.0.0\",\"@opentelemetry/sdk-trace-node\":\"2.0.0\",\"@opentelemetry/sdk-trace-web\":\"2.0.0\",\"@opentelemetry/semantic-conventions\":\"1.33.0\"},\"devDependencies\":{\"@effect/vitest\":\"4.0.0-beta.84\",\"@effect/language-service\":\"0.86.2\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 0,
+      "expectRules": []
+    },
+    {
+      "name": "v4-otel-missing-peer-red",
+      "suites": ["v4-package-rules", "package-presence", "fixture-coverage", "evil-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"node\"]}",
+        "package.json": "{\"dependencies\":{\"effect\":\"4.0.0-beta.84\",\"@effect/opentelemetry\":\"4.0.0-beta.84\"},\"devDependencies\":{\"@effect/vitest\":\"4.0.0-beta.84\",\"@effect/language-service\":\"0.86.2\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF323"]
+    },
+    {
+      "name": "mixed-v3-v4-package-red",
+      "suites": ["v4-package-rules", "package-presence", "fixture-coverage", "evil-fixtures"],
+      "strict": true,
+      "files": {
+        ".effect-skill.json": "{\"shape\":[\"library\"]}",
+        "package.json": "{\"dependencies\":{\"effect\":\"4.0.0-beta.84\",\"@effect/platform\":\"1.0.0\"},\"devDependencies\":{\"@effect/vitest\":\"4.0.0-beta.84\",\"@effect/language-service\":\"0.86.2\"}}",
+        "src/a.ts": "export const x = 1\n"
+      },
+      "expectExit": 1,
+      "expectRules": ["EFF322"]
     },
     {
       "name": "workflow-shape-red",

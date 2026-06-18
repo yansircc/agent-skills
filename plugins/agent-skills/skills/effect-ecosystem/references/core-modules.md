@@ -171,6 +171,20 @@ const program = findUser(id).pipe(
 )
 ```
 
+## Functional Core / Imperative Shell
+
+稳定做法是把领域代数留在 functional core，把运行时副作用留在 imperative
+shell：
+
+- core：纯函数、`Schema`、`Data`、`Option` / `Either`、领域错误、不会读取环境或
+  启动 fiber。
+- shell：`Effect` 程序、`Layer` 组装、HTTP/RPC/Worker 入口、数据库/文件/网络
+  adapter、`NodeRuntime.runMain`。
+
+跨边界时只传 schema-backed DTO 或领域类型。不要让 core 直接读
+`process.env`、构造 `Request` / `Response`、打开连接池、或调用
+`Effect.runPromise`；这些都是 shell 的责任。
+
 ## 5. `Effect.mapError` — 边界错误转译
 
 模块边界把内部错误重命名为对外抽象的领域错误，避免"泄漏抽象"。

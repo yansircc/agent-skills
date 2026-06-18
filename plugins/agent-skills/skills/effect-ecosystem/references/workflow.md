@@ -22,6 +22,26 @@ concerns. It is not a substitute for local service composition with `Layer`.
   and `Schedule`. Do not introduce workflow just because code has multiple
   steps.
 
+## Minimal Skeleton
+
+```typescript
+import { Effect, Schema } from "effect"
+
+const StartOrder = Schema.Struct({
+  orderId: Schema.String,
+})
+
+const reserveInventory = (input: Schema.Schema.Type<typeof StartOrder>) =>
+  Effect.gen(function* () {
+    // call domain service here; workflow runner stays outside domain algebra
+    return { reserved: true, orderId: input.orderId }
+  })
+```
+
+The stable shape is domain algebra first, runner binding second. A v4
+`effect/unstable/workflow` adoption still needs typed API plus runtime proof
+before scanner rules treat it as closed.
+
 ## Scanner Contract
 
 Scanner v1 does not enforce workflow shape. Scanner v2 may add a deterministic

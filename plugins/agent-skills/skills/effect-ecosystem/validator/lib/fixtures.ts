@@ -9,6 +9,18 @@ import { compileContractValidators } from "./contract-validation.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const CONFIG_PATH = resolve(__dirname, "..", "fixtures", "fixtures.config.json")
+const INTERNAL_SUITES = [
+  "rule-policy",
+  "policy-docs-schema-sync",
+  "fixture-coverage",
+  "lsp-no-reimplementation",
+  "profile-manifest-one-truth",
+  "signals-no-semantic-verdicts",
+  "runtime-facts-schema",
+  "signal-contract",
+  "signal-ref",
+  "effect-capabilities",
+]
 
 export function runSelfTest(options: any = {}) {
   const config = JSON.parse(readFileSync(CONFIG_PATH, "utf8"))
@@ -123,6 +135,10 @@ function runCases(config: any, options: any) {
       if (testCase.expectCompilerDiagnostics && !result.compilerDiagnostics?.length) {
         failures.push(`${testCase.name}: expected compilerDiagnostics outside findings`)
       }
+      for (const signal of result.signals ?? []) {
+        const validation = compileContractValidators().validateSignal(signal)
+        if (!validation.ok) failures.push(`${testCase.name}: signal contract rejected ${signal.kind}: ${validation.message}`)
+      }
     } catch (error) {
       failures.push(`${testCase.name}: ${error.stack ?? error.message}`)
     } finally {
@@ -164,15 +180,7 @@ function selectedCases(config: any, options: any) {
 }
 
 function shouldRunCaseSuite(suite: string) {
-  return ![
-    "rule-policy",
-    "policy-docs-schema-sync",
-    "fixture-coverage",
-    "lsp-no-reimplementation",
-    "profile-manifest-one-truth",
-    "signals-no-semantic-verdicts",
-    "runtime-facts-schema",
-  ].includes(suite)
+  return !INTERNAL_SUITES.includes(suite)
 }
 
 function runInternalSuiteChecks(config: any, options: any) {
@@ -208,13 +216,19 @@ function runInternalSuiteChecks(config: any, options: any) {
     }
   }
   if (!suite || suite === "signals-no-semantic-verdicts") {
-    const source = readFileSync(resolve(__dirname, "profile.js"), "utf8")
-    for (const forbidden of ["no-schema", "no-span", "missing-schema", "runtimeVerdict", "nodeRuntimeSupported", "supportedRuntime", "bindingLayerSupported", "requestScopeSafe", "layerWiring"]) {
-      if (source.includes(forbidden)) failures.push(`signals-no-semantic-verdicts: forbidden verdict token ${forbidden}`)
-    }
+    failures.push(...validateSignalFactKeys())
   }
   if (!suite || suite === "runtime-facts-schema") {
     failures.push(...validateRuntimeFactsSchema())
+  }
+  if (!suite || suite === "signal-contract") {
+    failures.push(...validateSignalContract())
+  }
+  if (!suite || suite === "signal-ref") {
+    failures.push(...validateSignalRefs(config))
+  }
+  if (!suite || suite === "effect-capabilities") {
+    failures.push(...validateEffectCapabilitiesContract())
   }
   return failures
 }
@@ -229,16 +243,91 @@ function validateContract(config: any) {
   }
   for (const suite of config.requiredSuites) {
     const hasCase = config.cases.some((testCase) => testCase.suites.includes(suite))
-    const internal = [
-      "rule-policy",
-      "policy-docs-schema-sync",
-      "fixture-coverage",
-      "lsp-no-reimplementation",
-      "profile-manifest-one-truth",
-      "signals-no-semantic-verdicts",
-      "runtime-facts-schema",
-    ].includes(suite)
+    const internal = INTERNAL_SUITES.includes(suite)
     if (!hasCase && !internal) failures.push(`contract: suite ${suite} has no cases`)
+  }
+  return failures
+}
+
+function validateSignalContract() {
+  const failures = []
+  const validators = compileContractValidators()
+  const result = validators.validateSignalContract()
+  if (!result.ok) failures.push(`signal-contract: ${result.message}`)
+
+  const valid = {
+    kind: "http-api-boundary-file",
+    file: "src/api.ts",
+    facts: { containsHttpApiToken: true, importsSchema: true },
+    skill_ref: "references/platform-http.md §4. HttpApi — 声明式 HTTP 服务端",
+    agent_action: "Read the file and decide whether boundary DTOs/errors require effect/Schema.",
+  }
+  if (!validators.validateSignal(valid).ok) failures.push("signal-contract: valid signal rejected")
+
+  const mutated: any = structuredClone(valid)
+  mutated.facts.runtimeVerdict = "supported"
+  if (validators.validateSignal(mutated).ok) failures.push("signal-contract: accepted semantic verdict mutation")
+
+  const missingFact: any = structuredClone(valid)
+  delete missingFact.facts.importsSchema
+  if (validators.validateSignal(missingFact).ok) failures.push("signal-contract: accepted missing fact mutation")
+  return failures
+}
+
+function validateSignalRefs(config) {
+  const failures = []
+  const validators = compileContractValidators()
+  for (const definition of validators.signalsContract.signals) {
+    if (!referenceExists(definition.skill_ref)) failures.push(`signal-ref: missing declared ${definition.skill_ref}`)
+  }
+  for (const testCase of config.cases.filter((item) => item.profile)) {
+    const root = mkdtempSync(resolve(tmpdir(), "effect-skill-signal-ref-"))
+    try {
+      writeFiles(root, testCase.files)
+      linkFixtureNodeModules(root)
+      const result = runScan(root, {
+        strict: Boolean(testCase.strict),
+        profile: true,
+        failOnSuppressionDrift: Boolean(testCase.failOnSuppressionDrift),
+      })
+      for (const signal of result.signals ?? []) {
+        if (!referenceExists(signal.skill_ref)) failures.push(`signal-ref: missing emitted ${signal.skill_ref}`)
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }
+  return failures
+}
+
+function validateSignalFactKeys() {
+  const failures = []
+  const validators = compileContractValidators()
+  const forbidden = new Set(["no-schema", "no-span", "missing-schema", "runtimeVerdict", "nodeRuntimeSupported", "supportedRuntime", "bindingLayerSupported", "requestScopeSafe", "layerWiring"])
+  for (const definition of validators.signalsContract.signals) {
+    const keys = factKeys(definition.factsSchema ?? {})
+    for (const key of keys) {
+      if (forbidden.has(key)) failures.push(`signals-no-semantic-verdicts: ${definition.kind} declares forbidden fact ${key}`)
+    }
+  }
+  return failures
+}
+
+function validateEffectCapabilitiesContract() {
+  const failures = []
+  const validators = compileContractValidators()
+  const result = validators.validateEffectCapabilities()
+  if (!result.ok) failures.push(`effect-capabilities: ${result.message}`)
+  const contract = validators.effectCapabilitiesContract
+  const requirementRuleIds = new Set()
+  for (const version of Object.values<any>(contract.versions)) {
+    for (const requirement of version.packageRequirements) {
+      if (!RULES[requirement.ruleId]) failures.push(`effect-capabilities: unknown rule ${requirement.ruleId}`)
+      requirementRuleIds.add(requirement.ruleId)
+    }
+  }
+  for (const ruleId of ["EFF300", "EFF301", "EFF302", "EFF303", "EFF304", "EFF310", "EFF311", "EFF312", "EFF313", "EFF314", "EFF315"]) {
+    if (!requirementRuleIds.has(ruleId)) failures.push(`effect-capabilities: missing ${ruleId}`)
   }
   return failures
 }
@@ -285,4 +374,30 @@ function validateRuntimeFactsSchema() {
 
 function validateSuiteExists(config: any, suite: string) {
   return config.requiredSuites.includes(suite) ? [] : [`unknown suite ${suite}`]
+}
+
+function referenceExists(skillRef) {
+  const match = skillRef.match(/^(references\/[^ ]+) §(.+)$/)
+  if (!match) return false
+  const [, file, heading] = match
+  const path = resolve(process.cwd(), file)
+  if (!existsSync(path)) return false
+  const headings = readFileSync(path, "utf8")
+    .split(/\r?\n/)
+    .filter((line) => /^#{1,6}\s+/.test(line))
+    .map((line) => line.replace(/^#{1,6}\s+/, "").trim())
+  return headings.includes(heading)
+}
+
+function factKeys(schema) {
+  const out = []
+  visit(schema)
+  return out
+
+  function visit(value) {
+    if (!value || typeof value !== "object") return
+    for (const key of Object.keys(value.properties ?? {})) out.push(key)
+    for (const child of Object.values(value.properties ?? {})) visit(child)
+    if (value.items) visit(value.items)
+  }
 }

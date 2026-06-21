@@ -20,7 +20,7 @@ assertIncludes(bun.stdout, "node-ok", "bun runtime")
 runBin("tsc", ["--noEmit", "--pretty", "false", "-p", "tsconfig.valid.json"])
 runBin("tsc", ["--noEmit", "--pretty", "false", "-p", "tsconfig.worker.json"])
 
-const scan = run("node", [resolve(__dirname, "..", "validator", "scan.js"), root, "--strict", "--json", "--profile"], {
+const scan = run("node", [resolve(__dirname, "..", "validator", "scan.js"), root, "--strict", "--output", "raw-json", "--profile"], {
   allowFailure: true,
   timeout: 120_000,
 })

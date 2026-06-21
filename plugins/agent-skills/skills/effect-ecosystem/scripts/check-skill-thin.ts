@@ -21,7 +21,7 @@ for (const required of [
   "effect-skill-scan",
   "make install",
   "make verify",
-  "--strict --json --profile",
+  "--strict --output gate-json",
 ]) {
   if (!skill.includes(required)) failures.push(`SKILL.md missing executor pointer: ${required}`)
 }

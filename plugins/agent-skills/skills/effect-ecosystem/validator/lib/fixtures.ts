@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, resolve } from "node:path"
+import { spawnSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
 import { mkdtempSync } from "node:fs"
 import { runScan } from "./scanner.js"
@@ -11,6 +12,7 @@ import { sha256, stableJson } from "./evidence.js"
 import { collectSourceFiles } from "./file-classifier.js"
 import { LSP_DIAGNOSTIC_MAP, scanLspDiagnostics } from "./lsp-bridge.js"
 import { loadManifest } from "./manifest.js"
+import { resolveOutputMode, USAGE_EXIT_CODE } from "./output.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const CONFIG_PATH = resolve(__dirname, "..", "fixtures", "fixtures.config.json")
@@ -29,6 +31,7 @@ const INTERNAL_SUITES = [
   "reference-routing",
   "effect-capabilities",
   "gate-summary",
+  "cli-output",
   "compliance-hash",
   "notProven-manifest",
   "library-exported-effect-rollup",
@@ -321,6 +324,9 @@ function runInternalSuiteChecks(config: any, options: any) {
   if (!suite || suite === "gate-summary") {
     failures.push(...validateGateSummaryBundle())
   }
+  if (!suite || suite === "cli-output") {
+    failures.push(...validateCliOutputProjection())
+  }
   if (!suite || suite === "compliance-hash") {
     failures.push(...validateComplianceHash())
   }
@@ -338,7 +344,7 @@ function validateGateSummaryBundle() {
   const root = mkdtempSync(resolve(tmpdir(), "effect-skill-gate-summary-"))
   try {
     writeFiles(root, {
-      ".effect-skill.json": "{\"shape\":[\"library\"]}",
+      ".effect-skill.json": "{\"shape\":[\"library\"],\"generatedPaths\":[{\"glob\":\"src/generated/**\",\"owner\":\"@codegen\",\"reason\":\"generated output\"}]}",
       "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
       "src/warn.ts": "export const now = new Date()\n",
       "src/signal.ts": "export const program = Effect.succeed(1)\n",
@@ -387,6 +393,89 @@ function validateGateSummaryBundle() {
   return failures
 }
 
+function validateCliOutputProjection() {
+  const failures = []
+  const ttyDefault = resolveOutputMode([], true)
+  const pipeDefault = resolveOutputMode([], false)
+  if (!ttyDefault.ok || ttyDefault.mode !== "human") failures.push("cli-output: TTY default must be human")
+  if (!pipeDefault.ok || pipeDefault.mode !== "gate-json") failures.push("cli-output: non-TTY default must be gate-json")
+
+  const root = mkdtempSync(resolve(tmpdir(), "effect-skill-cli-output-"))
+  try {
+    writeFiles(root, {
+      ".effect-skill.json": "{\"shape\":[\"library\"],\"generatedPaths\":[{\"glob\":\"src/generated/**\",\"owner\":\"@codegen\",\"reason\":\"generated output\"}]}",
+      "package.json": "{\"dependencies\":{\"effect\":\"3.21.2\"},\"devDependencies\":{\"@effect/vitest\":\"1.0.0\",\"@effect/language-service\":\"1.0.0\"}}",
+      "src/warn.ts": "export const now = new Date()\n",
+      "src/signal.ts": "export const program = Effect.succeed(1)\n",
+    })
+    linkFixtureNodeModules(root)
+
+    const defaultGate = parseJsonRun(failures, "cli-output: default non-TTY gate-json", root)
+    if (defaultGate) {
+      const validation = compileContractValidators().validateGateSummary(defaultGate)
+      if (!validation.ok) failures.push(`cli-output: default gate-json schema failed: ${validation.message}`)
+      if (defaultGate.artifacts !== null) failures.push("cli-output: gate-json without evidence must use artifacts null")
+      if (!defaultGate.effect.activeProfiles.includes("core")) failures.push("cli-output: gate-json did not imply profile activeProfiles")
+      if (!defaultGate.effect.requiredReferences.length) failures.push("cli-output: gate-json did not include requiredReferences")
+      if (defaultGate.tiers.review.signals.total === 0) failures.push("cli-output: gate-json did not imply signal facts")
+    }
+
+    const evidenceDir = resolve(root, ".scan-evidence")
+    const evidenceRun = runCli(root, ["--output", "gate-json", "--evidence", evidenceDir])
+    if (evidenceRun.status !== 0) failures.push(`cli-output: gate-json evidence exited ${evidenceRun.status}: ${evidenceRun.stderr}`)
+    const evidenceStdout = evidenceRun.stdout
+    const evidenceFile = readFileSync(resolve(evidenceDir, "gate-summary.json"), "utf8")
+    if (evidenceStdout !== evidenceFile) failures.push("cli-output: gate-json stdout differed from gate-summary.json")
+    const evidenceGate = parseJsonText(failures, "cli-output: evidence gate-json parse", evidenceStdout)
+    if (defaultGate && evidenceGate) {
+      for (const key of ["complianceHash"]) {
+        if (defaultGate[key] !== evidenceGate[key]) failures.push(`cli-output: ${key} changed when evidence was enabled`)
+      }
+      for (const key of ["inputHash", "fullHash"]) {
+        if (defaultGate.scanner[key] !== evidenceGate.scanner[key]) failures.push(`cli-output: scanner.${key} changed when evidence was enabled`)
+      }
+    }
+
+    const rawDir = resolve(root, ".scan-evidence-raw")
+    const rawRun = runCli(root, ["--output", "raw-json", "--evidence", rawDir])
+    const raw = parseJsonText(failures, "cli-output: raw-json parse", rawRun.stdout)
+    if (rawRun.status !== 0) failures.push(`cli-output: raw-json exited ${rawRun.status}: ${rawRun.stderr}`)
+    if (!raw?.findings || !raw?.evidence) failures.push("cli-output: raw-json did not emit raw scan result")
+    if (defaultGate && raw?.evidence) {
+      if (raw.evidence.complianceHash !== defaultGate.complianceHash) failures.push("cli-output: raw-json evidence changed complianceHash")
+      if (raw.evidence.inputHash !== defaultGate.scanner.inputHash) failures.push("cli-output: raw-json evidence changed inputHash")
+      if (raw.evidence.fullHash !== defaultGate.scanner.fullHash) failures.push("cli-output: raw-json evidence changed fullHash")
+    }
+
+    const noProfileRaw = parseJsonRun(failures, "cli-output: raw-json no profile", root, ["--output", "raw-json"])
+    if (noProfileRaw?.profile || noProfileRaw?.signals) failures.push("cli-output: raw-json without profile/evidence emitted profile facts")
+
+    const humanDir = resolve(root, ".scan-evidence-human")
+    const humanRun = runCli(root, ["--output", "human", "--evidence", humanDir])
+    if (humanRun.status !== 0) failures.push(`cli-output: human exited ${humanRun.status}: ${humanRun.stderr}`)
+    if (!humanRun.stdout.includes("Effect mechanical gate")) failures.push("cli-output: human output missing compact gate label")
+    const humanGate = JSON.parse(readFileSync(resolve(humanDir, "gate-summary.json"), "utf8"))
+    if (defaultGate) {
+      if (humanGate.complianceHash !== defaultGate.complianceHash) failures.push("cli-output: human output mode changed complianceHash")
+      if (humanGate.scanner.inputHash !== defaultGate.scanner.inputHash) failures.push("cli-output: human output mode changed inputHash")
+      if (humanGate.scanner.fullHash !== defaultGate.scanner.fullHash) failures.push("cli-output: human output mode changed fullHash")
+    }
+
+    const jsonRun = runCli(root, ["--json"])
+    if (jsonRun.status !== USAGE_EXIT_CODE) failures.push(`cli-output: --json should exit ${USAGE_EXIT_CODE}, got ${jsonRun.status}`)
+    if (!jsonRun.stderr.includes("--json was removed")) failures.push("cli-output: --json usage error missing migration hint")
+    const invalidOutput = runCli(root, ["--output", "xml"])
+    if (invalidOutput.status !== USAGE_EXIT_CODE) failures.push(`cli-output: invalid --output should exit ${USAGE_EXIT_CODE}, got ${invalidOutput.status}`)
+    const missingOutput = runCli(root, ["--output"])
+    if (missingOutput.status !== USAGE_EXIT_CODE) failures.push(`cli-output: missing --output value should exit ${USAGE_EXIT_CODE}, got ${missingOutput.status}`)
+    const missingEvidence = runCli(root, ["--evidence"])
+    if (missingEvidence.status !== USAGE_EXIT_CODE) failures.push(`cli-output: missing --evidence value should exit ${USAGE_EXIT_CODE}, got ${missingEvidence.status}`)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+  return failures
+}
+
 function validateComplianceHash() {
   const failures = []
   const root = mkdtempSync(resolve(tmpdir(), "effect-skill-compliance-"))
@@ -425,6 +514,30 @@ function validateComplianceHash() {
     rmSync(root, { recursive: true, force: true })
   }
   return failures
+}
+
+function runCli(root, args = []) {
+  return spawnSync(process.execPath, [resolve(__dirname, "..", "scan.js"), root, ...args], {
+    encoding: "utf8",
+  })
+}
+
+function parseJsonRun(failures, label, root, args = []) {
+  const run = runCli(root, args)
+  if (run.status !== 0) {
+    failures.push(`${label} exited ${run.status}: ${run.stderr}`)
+    return null
+  }
+  return parseJsonText(failures, label, run.stdout)
+}
+
+function parseJsonText(failures, label, text) {
+  try {
+    return JSON.parse(text)
+  } catch (error) {
+    failures.push(`${label} emitted invalid JSON: ${error.message}`)
+    return null
+  }
 }
 
 function validateNotProvenManifest() {

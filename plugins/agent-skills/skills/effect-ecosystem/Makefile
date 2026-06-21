@@ -52,7 +52,7 @@ verify:
 	node "$(BUILD_DIR)/scripts/typecheck-snippets.js"; \
 	node "$(BUILD_DIR)/validator/scan.js" --self-test --exact; \
 	node "$(BUILD_DIR)/validator/scan.js" --self-test --contract; \
-	node "$(BUILD_DIR)/validator/scan.js" . --strict --json --profile >/tmp/effect-skill-verify-profile.json; \
+	node "$(BUILD_DIR)/validator/scan.js" . --strict --output gate-json >/tmp/effect-skill-verify-profile.json; \
 	} || status=$$?; \
 	after=$$(snapshot); \
 	if [ "$$before" != "$$after" ]; then echo "installed scanner changed during make verify: $$before -> $$after" >&2; exit 1; fi; \

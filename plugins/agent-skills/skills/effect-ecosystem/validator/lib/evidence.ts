@@ -14,14 +14,13 @@ const DEFAULT_NOT_PROVEN = [
   { id: "architecture-boundaries", source: "scanner-default" },
 ]
 
+const BUNDLE_ARTIFACTS = {
+  rawJson: "scan-result.json",
+  evidence: "scan-evidence.json",
+}
+
 export function writeScanBundle(root, manifest, files, lspMeta, scanState, evidenceDir, rawResult) {
-  const { evidence, inputHash, fullHash } = buildScanEvidence(root, manifest, lspMeta, scanState)
-  const gateSummary = buildGateSummary(rawResult, evidence, { inputHash, fullHash }, manifest)
-  const validators = compileContractValidators()
-  const evidenceValidation = validators.validateScanEvidence(evidence)
-  if (!evidenceValidation.ok) throw new Error(evidenceValidation.message)
-  const gateValidation = validators.validateGateSummary(gateSummary)
-  if (!gateValidation.ok) throw new Error(gateValidation.message)
+  const { evidence, inputHash, fullHash, gateSummary } = buildScanProjection(root, manifest, lspMeta, scanState, rawResult, BUNDLE_ARTIFACTS)
 
   const outDir = resolve(evidenceDir)
   mkdirSync(outDir, { recursive: true })
@@ -36,7 +35,18 @@ export function writeScanBundle(root, manifest, files, lspMeta, scanState, evide
   writeFileSync(resolve(outDir, "gate-summary.json"), `${stableJson(gateSummary)}\n`)
   writeFileSync(resolve(outDir, "input.sha256"), `${inputHash}\n`)
   writeFileSync(resolve(outDir, "full.sha256"), `${fullHash}\n`)
-  return bundle
+  return { bundle, gateSummary }
+}
+
+export function buildScanProjection(root, manifest, lspMeta, scanState, rawResult, artifacts = null) {
+  const { evidence, inputHash, fullHash } = buildScanEvidence(root, manifest, lspMeta, scanState)
+  const gateSummary = buildGateSummary(rawResult, evidence, { inputHash, fullHash }, manifest, artifacts)
+  const validators = compileContractValidators()
+  const evidenceValidation = validators.validateScanEvidence(evidence)
+  if (!evidenceValidation.ok) throw new Error(evidenceValidation.message)
+  const gateValidation = validators.validateGateSummary(gateSummary)
+  if (!gateValidation.ok) throw new Error(gateValidation.message)
+  return { evidence, inputHash, fullHash, gateSummary }
 }
 
 function buildScanEvidence(root, manifest, lspMeta, scanState) {
@@ -67,7 +77,7 @@ function buildScanEvidence(root, manifest, lspMeta, scanState) {
   return { evidence, inputHash, fullHash }
 }
 
-function buildGateSummary(result, evidence, hashes, manifest) {
+function buildGateSummary(result, evidence, hashes, manifest, artifacts) {
   const block = normalizeFindings(result.findings.filter((finding) => finding.severity === "error"))
   const report = normalizeFindings(result.findings.filter((finding) => finding.severity === "warning"))
   const scannerBuildId = evidence.scanner.buildInfo.buildId
@@ -97,6 +107,7 @@ function buildGateSummary(result, evidence, hashes, manifest) {
       resolution: result.profile?.effectVersionsResolution ?? null,
       proof: result.profile?.effectVersionsProof ?? null,
       activeProfiles: result.profile?.activeProfiles ?? [],
+      requiredReferences: result.profile?.requiredReferences ?? [],
     },
     tiers: {
       block,
@@ -131,10 +142,7 @@ function buildGateSummary(result, evidence, hashes, manifest) {
         reason: item.reason,
       })),
     ],
-    artifacts: {
-      rawJson: "scan-result.json",
-      evidence: "scan-evidence.json",
-    },
+    artifacts,
   }
 }
 

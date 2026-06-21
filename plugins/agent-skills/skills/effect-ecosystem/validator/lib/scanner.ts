@@ -13,7 +13,7 @@ import { scanLspDiagnostics } from "./lsp-bridge.js"
 import { activeProfilesFor, buildProfile, buildSignals } from "./profile.js"
 import { scanRuntimeFactRules } from "./runtime-facts.js"
 import { resolveScanState } from "./resolver.js"
-import { writeScanBundle } from "./evidence.js"
+import { buildScanProjection, writeScanBundle } from "./evidence.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const RULES_PATH = resolve(__dirname, "..", "rules.jsonl")
@@ -74,12 +74,16 @@ export function runScan(inputRoot: string, options: any = {}) {
     warnings,
   }
   if (lsp.compilerDiagnostics.length > 0) result.compilerDiagnostics = lsp.compilerDiagnostics
-  if (options.profile || options.evidenceDir) {
+  if (options.profile || options.evidenceDir || options.gateSummary) {
     result.profile = timings.measure("profile", () => buildProfile(root, manifest, files, lspMeta, scanState))
     result.signals = timings.measure("signals", () => buildSignals(root, manifest, files, scanState))
   }
   if (options.evidenceDir) {
-    result.evidence = timings.measure("evidence", () => writeScanBundle(root, manifest, files, lspMeta, scanState, options.evidenceDir, result))
+    const written = timings.measure("evidence", () => writeScanBundle(root, manifest, files, lspMeta, scanState, options.evidenceDir, result))
+    result.evidence = written.bundle
+    if (options.gateSummary) result.gateSummary = written.gateSummary
+  } else if (options.gateSummary) {
+    result.gateSummary = timings.measure("gateSummary", () => buildScanProjection(root, manifest, lspMeta, scanState, result, null).gateSummary)
   }
   if (options.timings) {
     result.timings = {

@@ -51,6 +51,7 @@
     "version-resolver",
     "scan-evidence",
     "gate-summary",
+    "cli-output",
     "compliance-hash",
     "notProven-manifest",
     "library-exported-effect-rollup",

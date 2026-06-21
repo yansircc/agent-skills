@@ -11,8 +11,8 @@ export function resolveScanState(root, manifest, activeProfiles: string[] = []) 
     target: {
       root: ".",
       manifestPath: manifest ? ".effect-skill.json" : null,
-      hostTooling: sortedPathOwners(manifest?.hostTooling ?? []),
-      generatedPaths: sortedPathOwners(manifest?.generatedPaths ?? []),
+      hostTooling: sortedOwnedPatterns(manifest?.hostTooling ?? [], "path"),
+      generatedPaths: sortedOwnedPatterns(manifest?.generatedPaths ?? [], "glob"),
       packages: packages.map((pkg) => ({
         path: pkg.path,
         shape: pkg.shape,
@@ -28,14 +28,14 @@ export function resolveScanState(root, manifest, activeProfiles: string[] = []) 
   }
 }
 
-function sortedPathOwners(items) {
+function sortedOwnedPatterns(items, key) {
   return [...items]
     .map((item) => ({
-      path: item.path,
+      [key]: item[key],
       owner: item.owner,
       reason: item.reason,
     }))
-    .sort((a, b) => a.path.localeCompare(b.path) || a.owner.localeCompare(b.owner) || a.reason.localeCompare(b.reason))
+    .sort((a, b) => String(a[key]).localeCompare(String(b[key])) || a.owner.localeCompare(b.owner) || a.reason.localeCompare(b.reason))
 }
 
 export function effectVersionsFromResolution(scanState) {

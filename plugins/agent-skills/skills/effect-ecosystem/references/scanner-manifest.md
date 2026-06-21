@@ -150,7 +150,7 @@ installed reality:
 - comparison: `matched | conflict | declared-only | installed-only |
   unresolved`.
 
-If `profile.effectVersionsResolution` is `unresolved`, fix dependency ownership
+If gate output `effect.resolution` is `unresolved`, fix dependency ownership
 before semantic review. If it is `conflict`, fix the declared/installed major
 drift before trusting v3-only or v4-only findings.
 
@@ -280,8 +280,8 @@ does not reimplement Effect typeflow.
 
 ## Agent Workflow
 
-1. Run `effect-skill-scan <repo> --strict --json --profile --evidence <dir>`.
-2. Read `profile.effectVersionsResolution`, `profile.effectVersionsProof`, and
+1. Run `effect-skill-scan <repo> --strict --output gate-json --evidence <dir>`.
+2. Read `effect.resolution`, `effect.proof`, `effect.requiredReferences`, and
    evidence/resolver output. Do not manually infer version truth from package
    files when resolver output exists.
 3. Treat error findings as mechanical blockers. Warning findings are report-only.
@@ -347,7 +347,7 @@ deterministic finding.
 
 ## Evidence Bundle
 
-`effect-skill-scan <repo> --strict --json --profile --evidence <dir>` writes:
+`effect-skill-scan <repo> --strict --output gate-json --evidence <dir>` writes:
 
 - `scan-evidence.json`
 - `scan-result.json`
@@ -363,10 +363,20 @@ evidence record, including scanner `build-info.json`, and is the audit hash.
 `ok = errors === 0`, block/report/review tiers, scanner provenance references,
 and `complianceHash`.
 
+`--output` and `--evidence` are orthogonal. `--output gate-json` writes the
+gate summary to stdout and is valid without `--evidence`; in that case
+`artifacts` is `null`. `--evidence` writes the bundle above and does not decide
+stdout. Without an explicit `--output`, TTY stdout defaults to `human`, while
+non-TTY stdout defaults to `gate-json`. `--output raw-json` is available for
+debugging but is never the default. The removed `--json` flag is a usage error.
+
 `complianceHash` hashes normalized block/report findings plus scanner build id.
 It is comparable only when `scanner.buildId` is equal. If the scanner build
 changes, re-baseline the gate instead of treating the hash as comparable. Dirty
 scanner builds are not reproducible acceptance evidence.
+
+`complianceHash`, `input.sha256`, and `full.sha256` do not include stdout mode,
+artifact paths, whether `--evidence` was used, or temporary directories.
 
 ## Timings And Cache
 

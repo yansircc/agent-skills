@@ -19,7 +19,7 @@
         },
         "generatedPaths": {
           "type": "array",
-          "items": { "$ref": "#/$defs/pathOwner" }
+          "items": { "$ref": "#/$defs/globOwner" }
         },
         "packages": {
           "type": "array",
@@ -115,6 +115,16 @@
       "required": ["path", "owner", "reason"],
       "properties": {
         "path": { "type": "string" },
+        "owner": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    },
+    "globOwner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["glob", "owner", "reason"],
+      "properties": {
+        "glob": { "type": "string" },
         "owner": { "type": "string" },
         "reason": { "type": "string" }
       }

@@ -3,15 +3,33 @@ import { statSync } from "node:fs"
 import { resolve } from "node:path"
 import { exitCodeFor, runScan } from "./lib/scanner.js"
 import { runSelfTest } from "./lib/fixtures.js"
+import { optionalValue, resolveOutputMode, USAGE_EXIT_CODE } from "./lib/output.js"
+import { stableJson } from "./lib/evidence.js"
 
 const args = process.argv.slice(2)
 const flags = new Set(args.filter((arg) => arg.startsWith("--")))
-const valueFlags = new Set(["--suite", "--evidence"])
+const output = resolveOutputMode(args, Boolean(process.stdout.isTTY))
+if (output.ok === false) {
+  console.error(output.message)
+  process.exit(USAGE_EXIT_CODE)
+}
+const evidenceValue = optionalValue(args, "--evidence")
+if (evidenceValue.ok === false) {
+  console.error(evidenceValue.message)
+  process.exit(USAGE_EXIT_CODE)
+}
+const suiteValue = optionalValue(args, "--suite")
+if (suiteValue.ok === false) {
+  console.error(suiteValue.message)
+  process.exit(USAGE_EXIT_CODE)
+}
+const outputMode = output.mode
+const valueFlags = new Set(["--suite", "--evidence", "--output"])
 const positional = args.filter((arg, index) => !arg.startsWith("--") && !valueFlags.has(args[index - 1]))
 const root = resolve(positional[0] ?? process.cwd())
 
-const suite = valueAfter("--suite")
-const evidenceDir = valueAfter("--evidence")
+const suite = suiteValue.value
+const evidenceDir = evidenceValue.value
 
 if (flags.has("--self-test")) {
   const result = runSelfTest({
@@ -44,6 +62,7 @@ try {
     profile: flags.has("--profile"),
     timings: flags.has("--timings"),
     evidenceDir,
+    gateSummary: outputMode === "gate-json" || outputMode === "human",
     failOnSuppressionDrift: flags.has("--fail-on-suppression-drift"),
   })
 } catch (error) {
@@ -51,7 +70,9 @@ try {
   process.exit(2)
 }
 
-if (flags.has("--json")) {
+if (outputMode === "gate-json") {
+  process.stdout.write(`${stableJson(result.gateSummary)}\n`)
+} else if (outputMode === "raw-json") {
   process.stdout.write(JSON.stringify(result, null, 2) + "\n")
 } else {
   emitHuman(result)
@@ -59,16 +80,19 @@ if (flags.has("--json")) {
 
 process.exit(exitCodeFor(result))
 
-function valueAfter(name) {
-  const index = args.indexOf(name)
-  return index === -1 ? null : args[index + 1] ?? null
-}
-
 function emitHuman(result: any) {
   for (const warning of result.warnings ?? []) console.warn(`[warn] ${warning}`)
+  const gate = result.gateSummary
+  if (gate) {
+    const label = gate.ok ? "[OK] Effect mechanical gate passed" : "[FAIL] Effect mechanical gate failed"
+    console.log(label)
+    console.log(`errors=${gate.summary.errors} warnings=${gate.summary.warnings} signals=${gate.tiers.review.signals.total}`)
+    console.log(`complianceHash=${gate.complianceHash}`)
+    console.log(`scanner=${gate.scanner.buildId ?? "unknown"} dirty=${String(gate.scanner.dirty)}`)
+    if (gate.artifacts) console.log(`artifacts=${gate.artifacts.rawJson},${gate.artifacts.evidence}`)
+    else console.log("artifacts=not-written")
+  }
   if (result.findings.length === 0) {
-    console.log("[OK] no Effect scanner findings")
-    if (result.signals?.length) console.log(`[signals] ${result.signals.length} agent-review signals emitted`)
     return
   }
   const byFile: Record<string, any[]> = {}

@@ -23,12 +23,13 @@
     "effect": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["versions", "resolution", "proof", "activeProfiles"],
+      "required": ["versions", "resolution", "proof", "activeProfiles", "requiredReferences"],
       "properties": {
         "versions": { "type": "array", "items": { "type": "string" } },
         "resolution": { "type": ["string", "null"] },
         "proof": { "type": ["string", "null"] },
-        "activeProfiles": { "type": "array", "items": { "type": "string" } }
+        "activeProfiles": { "type": "array", "items": { "type": "string" } },
+        "requiredReferences": { "type": "array", "items": { "type": "string" } }
       }
     },
     "tiers": {
@@ -133,13 +134,18 @@
       }
     },
     "artifacts": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["rawJson", "evidence"],
-      "properties": {
-        "rawJson": { "const": "scan-result.json" },
-        "evidence": { "const": "scan-evidence.json" }
-      }
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rawJson", "evidence"],
+          "properties": {
+            "rawJson": { "const": "scan-result.json" },
+            "evidence": { "const": "scan-evidence.json" }
+          }
+        }
+      ]
     }
   },
   "$defs": {

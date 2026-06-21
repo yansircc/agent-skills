@@ -36,7 +36,7 @@ compatibility guess.
 3. Run the scanner:
 
    ```bash
-   effect-skill-scan <repo> --strict --json --profile --evidence <dir>
+   effect-skill-scan <repo> --strict --output gate-json --evidence <dir>
    ```
 
 4. Record `<dir>/gate-summary.json` as the Effect mechanical compliance gate.
@@ -46,9 +46,9 @@ compatibility guess.
    Fix blockers or add an owned, reasoned suppression.
 6. Treat `signals` as agent review prompts. Read the referenced files and make
    a written judgment against the relevant references.
-7. Load only `profile.requiredReferences` from the scanner output. If the field
+7. Load only `effect.requiredReferences` from the gate output. If the field
    is missing, the installed scanner is stale; run `make install` for release and
-   `make verify`. If `profile.effectVersionsResolution` is `unresolved` or
+   `make verify`. If `effect.resolution` is `unresolved` or
    `conflict`, fix declared intent or installed reality before continuing.
 8. If the same friction class lands in project evidence twice, graduate it into
    a skill artifact instead of leaving another project-only note.
@@ -58,12 +58,12 @@ compatibility guess.
 
 ## Reference Routing
 
-The scanner owns reference routing. `effect-skill-scan <repo> --strict --json
---profile` emits `profile.activeProfiles`, `profile.effectVersions`, and
-`profile.requiredReferences`. Load those exact files.
+The scanner owns reference routing. `effect-skill-scan <repo> --strict --output
+gate-json` emits `effect.activeProfiles`, `effect.versions`, and
+`effect.requiredReferences`. Load those exact files.
 
 The generated references `references/generated/rules-summary.md` and
-`references/generated/checklist.md` are included by `profile.requiredReferences`.
+`references/generated/checklist.md` are included by `effect.requiredReferences`.
 
 Existing deep references remain available for API details:
 `references/core-modules.md`, `references/platform-http.md`,
@@ -97,7 +97,7 @@ make verify-v4-acceptance
 ```
 
 For a target project, run its normal tests plus
-`effect-skill-scan <repo> --strict --json --profile --evidence <dir>`.
+`effect-skill-scan <repo> --strict --output gate-json --evidence <dir>`.
 
 ## Host Tooling Boundary
 
